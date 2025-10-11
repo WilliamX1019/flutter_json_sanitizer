@@ -3,6 +3,8 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
+import 'package:json_annotation/json_annotation.dart';
+import 'package:stack_trace/stack_trace.dart';
 
 /// 一个可复用的回调函数类型定义，用于上报在数据验证期间发现的问题。
 /// [modelName] 是正在解析的模型的名称。
@@ -59,44 +61,76 @@ class JsonSanitizer {
       // 如果您的业务逻辑视其为无效，可以在这里返回null。
     }
 
-    // 步骤 3: 根据用户定义，验证指定或全部字段
-    if (onIssuesFound != null) {
-      // 决定要验证哪些字段。如果用户指定了列表，就用它；否则，默认使用schema中的所有字段。
-      final keysToValidate = monitoredKeys ?? schema.keys.toList();
-      final validationIssues = <String>[];
-
-      for (final key in keysToValidate) {
-        final value = data[key];
-        if (value == null) {
-          validationIssues.add("'$key' is null");
-        } else if (value is String && value.isEmpty) {
-          validationIssues.add("'$key' is an empty string");
-        } else if (value is List && value.isEmpty) {
-          // 仅当期望的类型是列表时，才将空列表视为一个“问题”。
-          final expectedType = schema[key];
-          if (expectedType is ListSchema) {
-            validationIssues.add("'$key' is an empty list");
-          }
-        }
-      }
-
-      // 如果发现了任何问题，就通过回调执行上报
-      if (validationIssues.isNotEmpty) {
-        onIssuesFound(modelName: modelName, issues: validationIssues);
-      }
-    }
-
-    // 步骤 4: 清洗和解析
+    //  清洗和解析
     try {
       // 调用内部的、私有的 _sanitize 方法来执行实际的数据清洗
       final sanitizedJson = sanitize(data, schema);
+      // 根据用户定义，验证指定或全部字段
+      if (onIssuesFound != null) {
+        // 决定要验证哪些字段。如果用户指定了列表，就用它；否则，默认使用schema中的所有字段。
+        final keysToValidate = monitoredKeys ?? schema.keys.toList();
+        final validationIssues = <String>[];
+
+        for (final key in keysToValidate) {
+          final value = sanitizedJson[key];
+          if (value == null) {
+            validationIssues.add("'$key' is null");
+          } else if (value is String && value.isEmpty) {
+            validationIssues.add("'$key' is an empty string");
+          } else if (value is List && value.isEmpty) {
+            // 仅当期望的类型是列表时，才将空列表视为一个“问题”。
+            final expectedType = schema[key];
+            if (expectedType is ListSchema) {
+              validationIssues.add("'$key' is an empty list");
+            }
+          } else if (value is Map && value.isEmpty) {
+            final expectedType = schema[key];
+            // 我们只关心那些本应是嵌套对象 (MapSchema 或自定义模型)
+            // 却返回了空Map的情况。
+            if (expectedType is MapSchema ||
+                expectedType is Map<String, dynamic>) {
+              validationIssues.add("'$key' is an empty map {}");
+            }
+          }
+        }
+
+        // 如果发现了任何问题，就通过回调执行上报
+        if (validationIssues.isNotEmpty) {
+          onIssuesFound(modelName: modelName, issues: validationIssues);
+        }
+      }
       // 使用清洗后的、类型安全的数据来创建模型实例
       return fromJson(sanitizedJson);
     } catch (e, stackTrace) {
-      // 捕获在清洗或模型创建过程中可能发生的任何未预料的异常
+      // --- START: 全新的、信息丰富的异常处理 ---
+      final issues = <String>[];
+
+      // 专门处理来自 checked:true 的详细异常
+      if (e is CheckedFromJsonException) {
+        final key = e.key ?? 'UNKNOWN_KEY';
+        final message = e.message ?? 'No message';
+        issues.add(
+            "A structural error occurred at field '$key'. Reason: $message");
+      } else {
+        // 处理所有其他类型的异常
+        issues.add("An unexpected exception occurred during parsing: $e");
+      }
+
+      // 使用 `stack_trace` 包来解析和美化堆栈信息
+      final trace = Trace.from(stackTrace);
+      // 找到第一个与我们的项目相关的帧（而不是Flutter内部的帧）
+      final relevantFrame = trace.frames.firstWhere(
+        (f) => !f.isCore && f.package != 'flutter',
+        orElse: () => trace.frames.first,
+      );
+      // 获取文件名和行号
+      final location =
+          relevantFrame.location.split('/').last; // 只取 "file.dart:line:col"
+      issues.add("Error location: $location");
+      //数据清洗中遇到的异常，上报给用户
       onIssuesFound?.call(
         modelName: modelName,
-        issues: ["An unexpected exception occurred during parsing: $e"],
+        issues: issues,
       );
       // 在开发环境中打印堆栈跟踪信息总是有益的
       if (kDebugMode) {
@@ -165,7 +199,7 @@ class JsonSanitizer {
             k, _convertValue(v, expectedSchema.valueSchema, '$key.$k')));
       }
       _reportError(
-          'Expected Map for key "$key", but got ${value.runtimeType}', value);
+          'Expected Map<String, dynamic> for key "$key", but got ${value.runtimeType}', value);
       return {}; // 返回安全的空Map
     }
 
@@ -175,9 +209,9 @@ class JsonSanitizer {
         return JsonSanitizer.sanitize(value, expectedSchema);
       }
       _reportError(
-          'Expected nested object for key "$key", but got ${value.runtimeType}',
+          'Expected nested Map<String, dynamic> for key "$key", but got ${value.runtimeType}',
           value);
-      return {}; // 返回安全的空Map
+      return <String, dynamic>{}; // 返回安全的空Map
     }
 
     // 场景4: 处理基础类型
