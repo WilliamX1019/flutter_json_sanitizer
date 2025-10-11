@@ -1,4 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
+
+import 'models/user_profile.dart';
 
 void main() {
   runApp(const MyApp());
@@ -55,61 +60,59 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  String title = '开始净化脏数据';
+  //定义脏数据
+  final dirtyJson = {
+    "user_id": "9981",
+    "name": 12345,
+    "is_active": "1",
+    "tags": [10, "flutter", true, null],
+    "permissions": {"read": "1", "write": 0, "admin": null},
+    "mainProduct": {"product_id": 101.0, "name": "My Awesome Product"},
+    "metadata": [], // 关键测试点: 空列表应被转换为空Map
+  };
 
   void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+    // 2. 核心操作：使用JsonSanitizer和自动生成的公开Schema变量进行清洗
+    final sanitizedJson = JsonSanitizer.sanitize(
+        dirtyJson, $UserProfileSchema); // <-- 使用公开的 $...Schema 变量
+
+// 3. 最终验证：使用清洗后的JSON创建模型实例
+    final userProfile = UserProfile.fromJson(sanitizedJson);
+    print('清洗后的JSON: $userProfile');
+// 4. 格式化输出，以便在UI上清晰地展示对比结果
+    const jsonEncoder = JsonEncoder.withIndent('  ');
+    final formattedOriginal = jsonEncoder.convert(dirtyJson);
+    final formattedSanitized = jsonEncoder.convert(sanitizedJson);
+
+      print('原始JSON: $formattedOriginal');
+      print('净化后的JSON: $formattedSanitized');
+    if (formattedOriginal != formattedSanitized) {
+      setState(() {
+        title = '净化完成';
+      });
+    } else {
+      setState(() {
+        title = '净化未完成';
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
       body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             const Text(
               'You have pushed the button this many times:',
             ),
             Text(
-              '$_counter',
+              title,
               style: Theme.of(context).textTheme.headlineMedium,
             ),
           ],

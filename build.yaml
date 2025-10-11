@@ -5,5 +5,5 @@ builders:
     builder_factories: ["schemaBuilder"]
     build_extensions: {".dart": [".schema.g.dart"]}
     auto_apply: dependents
-    build_to: cache
+    build_to: source
     applies_builders: ["source_gen|part_cleanup"]

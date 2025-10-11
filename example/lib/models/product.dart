@@ -5,7 +5,6 @@ import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
 part 'product.freezed.dart';
 part 'product.g.dart';
 part 'product.schema.g.dart';
-
 @freezed
 @generateSchema
 class Product with _$Product {

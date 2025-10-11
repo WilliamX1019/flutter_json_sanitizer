@@ -4,6 +4,7 @@ import 'package:build/build.dart';
 import 'package:source_gen/source_gen.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:flutter_json_sanitizer/src/annotations.dart';
+import 'package:flutter_json_sanitizer/src/schema_helpers.dart';
 
 class SchemaGenerator extends GeneratorForAnnotation<GenerateSchema> {
   final _schemaAnnotationChecker = const TypeChecker.fromRuntime(GenerateSchema);
@@ -19,11 +20,6 @@ class SchemaGenerator extends GeneratorForAnnotation<GenerateSchema> {
     }
 
     final className = element.name;
-    final buffer = StringBuffer();
-
-    // --- START OF THE CRITICAL FIX ---
-    // For freezed classes, the properties are defined in the default factory
-    // constructor's parameters, not as class fields. We must find that constructor.
     final constructor = element.unnamedConstructor;
 
     if (constructor == null || !constructor.isFactory) {
@@ -32,13 +28,12 @@ class SchemaGenerator extends GeneratorForAnnotation<GenerateSchema> {
         element: element,
       );
     }
-    // --- END OF THE CRITICAL FIX ---
+    
+    final buffer = StringBuffer();
+    // --- CRITICAL FIX 1: Generate a PUBLIC variable name ---
+    // Change from `_$${className}Schema` to `$${className}Schema`
+    buffer.writeln('const Map<String, dynamic> \$${className}Schema = {');
 
-
-    buffer.writeln('const Map<String, dynamic> _\$${className}Schema = {');
-
-    // --- THE MAIN LOOP IS NOW CORRECT ---
-    // We iterate over constructor parameters, not class fields.
     for (final param in constructor.parameters) {
       String jsonKey = param.name;
       final jsonKeyAnnotation = _jsonKeyChecker.firstAnnotationOf(param);
@@ -52,13 +47,11 @@ class SchemaGenerator extends GeneratorForAnnotation<GenerateSchema> {
       final schemaValue = _getSchemaValueForType(param.type);
       buffer.writeln("  '$jsonKey': $schemaValue,");
     }
-    // --- END OF THE CORRECTED LOOP ---
 
     buffer.writeln('};');
     return buffer.toString();
   }
   
-  // This helper method remains unchanged and correct.
   String _getSchemaValueForType(DartType type) {
     if (type.element == null) return 'dynamic';
 
@@ -89,7 +82,9 @@ class SchemaGenerator extends GeneratorForAnnotation<GenerateSchema> {
     
     final element = type.element;
     if (element is ClassElement && _schemaAnnotationChecker.hasAnnotationOf(element)) {
-      return '_\$${element.name}Schema';
+      // --- CRITICAL FIX 2: Reference the PUBLIC variable name ---
+      // Change from `_$${element.name}Schema` to `$${element.name}Schema`
+      return '\$${element.name}Schema';
     }
 
     return 'dynamic';
