@@ -68,34 +68,44 @@ class _MyHomePageState extends State<MyHomePage> {
     "is_active": "1",
     "tags": [10, "flutter", true, null],
     "permissions": {"read": "1", "write": 0, "admin": null},
-    "mainProduct": {"product_id": 101.0, "name": "My Awesome Product"},
+    "mainProduct": {"product_id": 101.0, "name":["My Awesome Product"]},
     "metadata": [], // 关键测试点: 空列表应被转换为空Map
   };
 
   void _incrementCounter() {
     // 2. 核心操作：使用JsonSanitizer和自动生成的公开Schema变量进行清洗
-    final sanitizedJson = JsonSanitizer.sanitize(
-        dirtyJson, $UserProfileSchema); // <-- 使用公开的 $...Schema 变量
+//     final sanitizedJson = JsonSanitizer.sanitize(
+//         dirtyJson, $UserProfileSchema); // <-- 使用公开的 $...Schema 变量
 
-// 3. 最终验证：使用清洗后的JSON创建模型实例
-    final userProfile = UserProfile.fromJson(sanitizedJson);
-    print('清洗后的JSON: $userProfile');
-// 4. 格式化输出，以便在UI上清晰地展示对比结果
-    const jsonEncoder = JsonEncoder.withIndent('  ');
-    final formattedOriginal = jsonEncoder.convert(dirtyJson);
-    final formattedSanitized = jsonEncoder.convert(sanitizedJson);
+// // 3. 最终验证：使用清洗后的JSON创建模型实例
+//     final userProfile = UserProfile.fromJson(sanitizedJson);
+//     print('清洗后的JSON: $userProfile');
+// // 4. 格式化输出，以便在UI上清晰地展示对比结果
+//     const jsonEncoder = JsonEncoder.withIndent('  ');
+//     final formattedOriginal = jsonEncoder.convert(dirtyJson);
+//     final formattedSanitized = jsonEncoder.convert(sanitizedJson);
 
-      print('原始JSON: $formattedOriginal');
-      print('净化后的JSON: $formattedSanitized');
-    if (formattedOriginal != formattedSanitized) {
-      setState(() {
-        title = '净化完成';
-      });
-    } else {
-      setState(() {
-        title = '净化未完成';
-      });
-    }
+//       print('原始JSON: $formattedOriginal');
+//       print('净化后的JSON: $formattedSanitized');
+//     if (formattedOriginal != formattedSanitized) {
+//       setState(() {
+//         title = '净化完成';
+//       });
+//     } else {
+//       setState(() {
+//         title = '净化未完成';
+//       });
+//     }
+
+    final profile = JsonSanitizer.parse<UserProfile>(
+        data: dirtyJson,
+        schema: $UserProfileSchema,
+        fromJson: UserProfile.fromJson,
+        modelName: 'UserProfile',
+        onIssuesFound: ({required issues, required modelName}) {
+          print('发现问题: $issues 在模型 $modelName 中');
+        },);
+    print('解析后的模型: ${jsonEncode(profile)}');    
   }
 
   @override
