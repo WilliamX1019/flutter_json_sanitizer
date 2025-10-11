@@ -4,6 +4,12 @@
 targets:
   $default:
     builders:
+      # --- START: 添加这个配置 ---
+      json_serializable:
+        options:
+      # 开启checked模式，这将生成更安全的、带有详细错误信息的解析代码
+          checked: true
+      # --- END: 添加这个配置 ---
       # Ensure our builder is enabled for the project.
       flutter_json_sanitizer|schema_builder:
         enabled: true

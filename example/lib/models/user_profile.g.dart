@@ -7,20 +7,35 @@ part of 'user_profile.dart';
 // **************************************************************************
 
 _$UserProfileImpl _$$UserProfileImplFromJson(Map<String, dynamic> json) =>
-    _$UserProfileImpl(
-      userId: (json['user_id'] as num?)?.toInt(),
-      name: json['name'] as String?,
-      isActive: json['is_active'] as bool?,
-      tags: (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList(),
-      permissions: json['permissions'] == null
-          ? null
-          : Permissions.fromJson(json['permissions'] as Map<String, dynamic>),
-      mainProduct: json['mainProduct'] == null
-          ? null
-          : MainProduct.fromJson(json['mainProduct'] as Map<String, dynamic>),
-      metadata: json['metadata'] == null
-          ? null
-          : Metadata.fromJson(json['metadata'] as Map<String, dynamic>),
+    $checkedCreate(
+      r'_$UserProfileImpl',
+      json,
+      ($checkedConvert) {
+        final val = _$UserProfileImpl(
+          userId: $checkedConvert('user_id', (v) => (v as num?)?.toInt()),
+          name: $checkedConvert('name', (v) => v as String?),
+          isActive: $checkedConvert('is_active', (v) => v as bool?),
+          tags: $checkedConvert('tags',
+              (v) => (v as List<dynamic>?)?.map((e) => e as String).toList()),
+          permissions: $checkedConvert(
+              'permissions',
+              (v) => v == null
+                  ? null
+                  : Permissions.fromJson(v as Map<String, dynamic>)),
+          mainProduct: $checkedConvert(
+              'mainProduct',
+              (v) => v == null
+                  ? null
+                  : MainProduct.fromJson(v as Map<String, dynamic>)),
+          metadata: $checkedConvert(
+              'metadata',
+              (v) => v == null
+                  ? null
+                  : Metadata.fromJson(v as Map<String, dynamic>)),
+        );
+        return val;
+      },
+      fieldKeyMap: const {'userId': 'user_id', 'isActive': 'is_active'},
     );
 
 Map<String, dynamic> _$$UserProfileImplToJson(_$UserProfileImpl instance) =>
@@ -35,9 +50,17 @@ Map<String, dynamic> _$$UserProfileImplToJson(_$UserProfileImpl instance) =>
     };
 
 _$MainProductImpl _$$MainProductImplFromJson(Map<String, dynamic> json) =>
-    _$MainProductImpl(
-      productId: (json['product_id'] as num?)?.toInt(),
-      name: json['name'] as String?,
+    $checkedCreate(
+      r'_$MainProductImpl',
+      json,
+      ($checkedConvert) {
+        final val = _$MainProductImpl(
+          productId: $checkedConvert('product_id', (v) => (v as num?)?.toInt()),
+          name: $checkedConvert('name', (v) => v as String?),
+        );
+        return val;
+      },
+      fieldKeyMap: const {'productId': 'product_id'},
     );
 
 Map<String, dynamic> _$$MainProductImplToJson(_$MainProductImpl instance) =>
@@ -47,16 +70,30 @@ Map<String, dynamic> _$$MainProductImplToJson(_$MainProductImpl instance) =>
     };
 
 _$MetadataImpl _$$MetadataImplFromJson(Map<String, dynamic> json) =>
-    _$MetadataImpl();
+    $checkedCreate(
+      r'_$MetadataImpl',
+      json,
+      ($checkedConvert) {
+        final val = _$MetadataImpl();
+        return val;
+      },
+    );
 
 Map<String, dynamic> _$$MetadataImplToJson(_$MetadataImpl instance) =>
     <String, dynamic>{};
 
 _$PermissionsImpl _$$PermissionsImplFromJson(Map<String, dynamic> json) =>
-    _$PermissionsImpl(
-      read: (json['read'] as num?)?.toInt(),
-      write: (json['write'] as num?)?.toInt(),
-      admin: (json['admin'] as num?)?.toInt(),
+    $checkedCreate(
+      r'_$PermissionsImpl',
+      json,
+      ($checkedConvert) {
+        final val = _$PermissionsImpl(
+          read: $checkedConvert('read', (v) => (v as num?)?.toInt()),
+          write: $checkedConvert('write', (v) => (v as num?)?.toInt()),
+          admin: $checkedConvert('admin', (v) => (v as num?)?.toInt()),
+        );
+        return val;
+      },
     );
 
 Map<String, dynamic> _$$PermissionsImplToJson(_$PermissionsImpl instance) =>

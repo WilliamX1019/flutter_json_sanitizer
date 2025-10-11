@@ -7,9 +7,17 @@ part of 'product.dart';
 // **************************************************************************
 
 _$ProductImpl _$$ProductImplFromJson(Map<String, dynamic> json) =>
-    _$ProductImpl(
-      productId: (json['product_id'] as num).toInt(),
-      name: json['name'] as String,
+    $checkedCreate(
+      r'_$ProductImpl',
+      json,
+      ($checkedConvert) {
+        final val = _$ProductImpl(
+          productId: $checkedConvert('product_id', (v) => (v as num).toInt()),
+          name: $checkedConvert('name', (v) => v as String),
+        );
+        return val;
+      },
+      fieldKeyMap: const {'productId': 'product_id'},
     );
 
 Map<String, dynamic> _$$ProductImplToJson(_$ProductImpl instance) =>
