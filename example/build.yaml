@@ -1,0 +1,18 @@
+# This file configures the build order for the 'example' project.
+# It tells build_runner how builders from different packages should interact.
+
+targets:
+  $default:
+    builders:
+      # Ensure our builder is enabled for the project.
+      flutter_json_sanitizer|schema_builder:
+        enabled: true
+
+# --- The most important part ---
+# This section defines global build-wide options.
+global_options:
+  # We are defining a rule for the 'freezed' builder.
+  freezed:
+    # This rule says: the 'freezed' builder MUST run BEFORE our schema_builder.
+    runs_before:
+      - flutter_json_sanitizer|schema_builder

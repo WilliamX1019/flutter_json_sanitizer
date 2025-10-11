@@ -1,0 +1,9 @@
+# flutter_json_sanitizer/build.yaml
+builders:
+  schema_builder:
+    import: "package:flutter_json_sanitizer/build.dart"
+    builder_factories: ["schemaBuilder"]
+    build_extensions: {".dart": [".schema.g.dart"]}
+    auto_apply: dependents
+    build_to: cache
+    applies_builders: ["source_gen|part_cleanup"]
