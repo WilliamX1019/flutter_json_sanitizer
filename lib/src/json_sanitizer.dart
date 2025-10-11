@@ -44,8 +44,8 @@ class JsonSanitizer {
         debugPrint(
             'JsonSanitizer Info: Converting empty List [] to empty Map {} for key "$key".');
       }
-
-      return {};
+      // 显式地创建一个类型为 Map<String, dynamic> 的空Map
+      return <String, dynamic>{};
     }
     
     // 场景1: 处理 List
