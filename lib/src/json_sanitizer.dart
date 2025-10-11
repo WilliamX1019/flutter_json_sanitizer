@@ -16,8 +16,15 @@ typedef DataIssueCallback = void Function({
 
 class JsonSanitizer {
   final Map<String, dynamic> schema;
+  final String modelName;
+  final DataIssueCallback? onIssuesFound;
 
-  JsonSanitizer(this.schema);
+  /// 构造函数现在接收上报所需的信息。
+  JsonSanitizer._({
+    required this.schema,
+    required this.modelName,
+    this.onIssuesFound,
+  });
 
   /// 一个健壮的、一体化的API响应解析器。
   ///
@@ -64,7 +71,13 @@ class JsonSanitizer {
     //  清洗和解析
     try {
       // 调用内部的、私有的 _sanitize 方法来执行实际的数据清洗
-      final sanitizedJson = sanitize(data, schema);
+      // --- 核心改动：创建实例时传入回调和模型名 ---
+      final sanitizer = JsonSanitizer._(
+        schema: schema,
+        modelName: modelName,
+        onIssuesFound: onIssuesFound,
+      );
+      final sanitizedJson = sanitizer._processMap(data);
       // 根据用户定义，验证指定或全部字段
       if (onIssuesFound != null) {
         // 决定要验证哪些字段。如果用户指定了列表，就用它；否则，默认使用schema中的所有字段。
@@ -102,51 +115,15 @@ class JsonSanitizer {
       // 使用清洗后的、类型安全的数据来创建模型实例
       return fromJson(sanitizedJson);
     } catch (e, stackTrace) {
-      // --- START: 全新的、信息丰富的异常处理 ---
-      final issues = <String>[];
-
-      // 专门处理来自 checked:true 的详细异常
-      if (e is CheckedFromJsonException) {
-        final key = e.key ?? 'UNKNOWN_KEY';
-        final message = e.message ?? 'No message';
-        issues.add(
-            "A structural error occurred at field '$key'. Reason: $message");
-      } else {
-        // 处理所有其他类型的异常
-        issues.add("An unexpected exception occurred during parsing: $e");
-      }
-
-      // 使用 `stack_trace` 包来解析和美化堆栈信息
-      final trace = Trace.from(stackTrace);
-      // 找到第一个与我们的项目相关的帧（而不是Flutter内部的帧）
-      final relevantFrame = trace.frames.firstWhere(
-        (f) => !f.isCore && f.package != 'flutter',
-        orElse: () => trace.frames.first,
-      );
-      // 获取文件名和行号
-      final location =
-          relevantFrame.location.split('/').last; // 只取 "file.dart:line:col"
-      issues.add("Error location: $location");
-      //数据清洗中遇到的异常，上报给用户
-      onIssuesFound?.call(
+      _reportError(
+        // _reportError 保持为静态方法，处理顶层异常
         modelName: modelName,
-        issues: issues,
+        exception: e,
+        stackTrace: stackTrace,
+        onIssuesFound: onIssuesFound,
       );
-      // 在开发环境中打印堆栈跟踪信息总是有益的
-      if (kDebugMode) {
-        debugPrint(
-            'JsonSanitizer encountered an unhandled exception for model "$modelName":');
-        debugPrint(stackTrace.toString());
-      }
       return null;
     }
-  }
-
-  /// 静态入口方法，接收原始JSON和自动生成的Schema，返回清洗后的JSON。
-  static Map<String, dynamic> sanitize(
-      Map<String, dynamic> json, Map<String, dynamic> schema) {
-    final sanitizer = JsonSanitizer(schema);
-    return sanitizer._processMap(json);
   }
 
   Map<String, dynamic> _processMap(Map<String, dynamic> map) {
@@ -172,10 +149,10 @@ class JsonSanitizer {
     final isExpectingMap =
         expectedSchema is MapSchema || expectedSchema is Map<String, dynamic>;
     if (isExpectingMap && value is List && value.isEmpty) {
-      if (kDebugMode) {
-        debugPrint(
-            'JsonSanitizer Info: Converting empty List [] to empty Map {} for key "$key".');
-      }
+      // if (kDebugMode) {
+      //   debugPrint(
+      //       'JsonSanitizer Info: Converting empty List [] to empty Map {} for key "$key".');
+      // }
       // 显式地创建一个类型为 Map<String, dynamic> 的空Map
       return <String, dynamic>{};
     }
@@ -187,8 +164,11 @@ class JsonSanitizer {
             .map((item) => _convertValue(item, expectedSchema.itemSchema, key))
             .toList();
       }
-      _reportError(
-          'Expected List for key "$key", but got ${value.runtimeType}', value);
+      _reportStructuralError(
+        key: key,
+        expectedType: 'List',
+        receivedValue: value,
+      );
       return []; // 返回安全的空List
     }
 
@@ -198,20 +178,32 @@ class JsonSanitizer {
         return value.map((k, v) => MapEntry(
             k, _convertValue(v, expectedSchema.valueSchema, '$key.$k')));
       }
-      _reportError(
-          'Expected Map<String, dynamic> for key "$key", but got ${value.runtimeType}', value);
+      _reportStructuralError(
+        key: key,
+        expectedType: 'Map<String, dynamic>',
+        receivedValue: value,
+      );
       return {}; // 返回安全的空Map
     }
 
     // 场景3: 处理嵌套的自定义模型
     if (expectedSchema is Map<String, dynamic>) {
       if (value is Map<String, dynamic>) {
-        return JsonSanitizer.sanitize(value, expectedSchema);
+        // 为嵌套调用创建一个新的Sanitizer实例
+        final nestedSanitizer = JsonSanitizer._(
+          schema: expectedSchema,
+          modelName: key, // 使用字段名作为嵌套模型的名
+          onIssuesFound: onIssuesFound,
+        );
+        return nestedSanitizer._processMap(value);
       }
-      _reportError(
-          'Expected nested Map<String, dynamic> for key "$key", but got ${value.runtimeType}',
-          value);
-      return <String, dynamic>{}; // 返回安全的空Map
+      // --- 关键改动：调用上报方法 ---
+      _reportStructuralError(
+        key: key,
+        expectedType: 'Map<String, dynamic>',
+        receivedValue: value,
+      );
+      return <String, dynamic>{}; // 返回安全的默认值
     }
 
     // 场景4: 处理基础类型
@@ -244,9 +236,12 @@ class JsonSanitizer {
           throw 'Cannot convert to bool';
         }
       } catch (e) {
-        _reportError(
-            'Failed to convert key "$key" with value "$value" to type $expectedSchema',
-            value);
+        // --- 关键改动：调用上报方法 ---
+        _reportStructuralError(
+          key: key,
+          expectedType: expectedSchema.toString(),
+          receivedValue: value,
+        );
         if (expectedSchema == int) return 0;
         if (expectedSchema == double) return 0.0;
         if (expectedSchema == String) return '';
@@ -258,15 +253,78 @@ class JsonSanitizer {
     return value;
   }
 
-  void _reportError(String reason, dynamic value) {
-    if (kDebugMode) {
-      debugPrint('JsonSanitizer Error: $reason. Value: $value');
+  void _reportStructuralError({
+    required String key,
+    required String expectedType,
+    required dynamic receivedValue,
+  }) {
+    onIssuesFound?.call(
+      modelName: modelName,
+      issues: [
+        "Structural error at field '$key': Expected a $expectedType but received a ${receivedValue.runtimeType}. Sanitizer cannot fix this and will return a default value."
+      ],
+    );
+  }
+
+  /// 统一的、信息丰富的静态错误报告方法。
+  ///
+  /// 它专门用于处理在 `fromJson` 工厂方法执行期间抛出的、无法预料的异常。
+  /// 它能智能地处理不同类型的异常，格式化堆栈信息，并通过回调进行上报。
+  ///
+  /// - [modelName]: 发生异常的模型名称。
+  /// - [exception]: `catch`块捕获到的异常对象。
+  /// - [stackTrace]: `catch`块捕获到的堆栈跟踪。
+  /// - [onIssuesFound]: 用户提供的、用于上报问题的回调函数。
+  static void _reportError({
+    required String modelName,
+    required Object exception,
+    required StackTrace stackTrace,
+    DataIssueCallback? onIssuesFound,
+  }) {
+    final issues = <String>[];
+
+    // 智能地解析异常类型，优先处理信息最丰富的 CheckedFromJsonException
+    if (exception is CheckedFromJsonException) {
+      final key = exception.key ?? 'UNKNOWN_KEY';
+      final message = exception.message ?? 'No specific message';
+      final innerError = exception.innerError != null
+          ? " (Inner error: ${exception.innerError})"
+          : "";
+
+      issues.add(
+          "A structural error occurred at field '$key'. Reason: $message$innerError");
+    } else {
+      // 处理所有其他类型的通用异常
+      issues.add("An unexpected exception occurred during parsing: $exception");
     }
-    // 可选：上报到Firebase
-    // FirebaseCrashlytics.instance.recordError(
-    //   Exception(reason),
-    //   StackTrace.current,
-    //   information: ['Received value: $value'],
-    // );
+
+    // 使用 `stack_trace` 包来解析和美化堆栈信息
+    try {
+      final trace = Trace.from(stackTrace);
+      // 找到第一个与我们的项目相关的、非核心库的帧
+      final relevantFrame = trace.frames.firstWhere(
+        (f) => !f.isCore && f.package != 'flutter',
+        // 如果找不到，就回退到第一个帧
+        orElse: () => trace.frames.first,
+      );
+      // 获取文件名、行号和列号
+      final location =
+          relevantFrame.location.split('/').last; // 只取 "file.dart:line:col"
+      issues.add("Probable error location: $location");
+    } catch (e) {
+      // 如果堆栈解析失败，也能优雅地处理
+      issues.add("Could not parse stack trace.");
+    }
+
+    // 通过回调将格式化后的问题列表上报给使用者
+    onIssuesFound?.call(
+      modelName: modelName,
+      issues: issues,
+    );
+    if (kDebugMode) {
+      debugPrint(
+          'JsonSanitizer encountered an unhandled exception for model "$modelName":');
+      debugPrint(issues.join('\n'));
+    }
   }
 }
