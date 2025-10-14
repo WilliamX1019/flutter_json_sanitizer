@@ -15,6 +15,19 @@ typedef DataIssueCallback = void Function({
 });
 
 class JsonSanitizer {
+  // --- 全局配置 ---
+  /// Example:
+  /// ```dart
+  /// void main() {
+  ///   JsonSanitizer.globalDataIssueCallback = ({modelName, issues}) {
+  ///     // Your global Firebase/Sentry reporting logic here
+  ///     print("GLOBAL REPORTER: Issue for '$modelName': ${issues.join(', ')}");
+  ///   };
+  ///   runApp(MyApp());
+  /// }
+  /// ```
+  static DataIssueCallback? globalDataIssueCallback;
+
   final Map<String, dynamic> schema;
   final String modelName;
   final DataIssueCallback? onIssuesFound;
@@ -48,12 +61,15 @@ class JsonSanitizer {
     required Map<String, dynamic> schema,
     required T Function(Map<String, dynamic>) fromJson,
     required String modelName,
-    DataIssueCallback? onIssuesFound,
+    DataIssueCallback? onIssuesFound, //局部回调
     List<String>? monitoredKeys,
   }) {
+    // 优先使用局部传入的回调。如果局部回调为null，则使用全局默认回调。
+    final effectiveCallback = onIssuesFound ?? globalDataIssueCallback;
+
     // 步骤 1: 验证最外层容器的有效性
     if (data == null || data is! Map<String, dynamic>) {
-      onIssuesFound?.call(
+      effectiveCallback?.call(
         modelName: modelName,
         issues: [
           "Response body is null or not a valid JSON object. Received: $data"
@@ -66,26 +82,17 @@ class JsonSanitizer {
     if (data.isEmpty) {
       // 通常，一个空的JSON对象是合法的，可以解析为一个具有默认值的模型。
       // 如果您的业务逻辑视其为无效，可以在这里返回null。
+      return fromJson({});
     }
 
-    //  清洗和解析
-    try {
-      // 调用内部的、私有的 _sanitize 方法来执行实际的数据清洗
-      // --- 核心改动：创建实例时传入回调和模型名 ---
-      final sanitizer = JsonSanitizer._(
-        schema: schema,
-        modelName: modelName,
-        onIssuesFound: onIssuesFound,
-      );
-      final sanitizedJson = sanitizer._processMap(data);
-      // 根据用户定义，验证指定或全部字段
-      if (onIssuesFound != null) {
+      // 对原始的、未经处理的`data`进行验证和上报
+      if (effectiveCallback != null) {
         // 决定要验证哪些字段。如果用户指定了列表，就用它；否则，默认使用schema中的所有字段。
         final keysToValidate = monitoredKeys ?? schema.keys.toList();
         final validationIssues = <String>[];
 
         for (final key in keysToValidate) {
-          final value = sanitizedJson[key];
+          final value = data[key];
           if (value == null) {
             validationIssues.add("'$key' is null");
           } else if (value is String && value.isEmpty) {
@@ -109,9 +116,19 @@ class JsonSanitizer {
 
         // 如果发现了任何问题，就通过回调执行上报
         if (validationIssues.isNotEmpty) {
-          onIssuesFound(modelName: modelName, issues: validationIssues);
+          effectiveCallback(modelName: modelName, issues: validationIssues);
         }
       }
+    //  清洗和解析
+    try {
+      // 调用内部的、私有的 _sanitize 方法来执行实际的数据清洗
+      // --- 核心改动：创建实例时传入回调和模型名 ---
+      final sanitizer = JsonSanitizer._(
+        schema: schema,
+        modelName: modelName,
+        onIssuesFound: effectiveCallback,
+      );
+      final sanitizedJson = sanitizer._processMap(data);
       // 使用清洗后的、类型安全的数据来创建模型实例
       return fromJson(sanitizedJson);
     } catch (e, stackTrace) {
@@ -120,7 +137,7 @@ class JsonSanitizer {
         modelName: modelName,
         exception: e,
         stackTrace: stackTrace,
-        onIssuesFound: onIssuesFound,
+        onIssuesFound: effectiveCallback,
       );
       return null;
     }
