@@ -5,18 +5,15 @@ import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
 
 import 'models/user_profile.dart';
 
-void main() {
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+  // --- 2. 在应用启动时，初始化Worker ---
+  print('初始化Worker... ${DateTime.now().millisecondsSinceEpoch}');
+  await JsonParserWorker.instance.initialize();
+  print('Worker初始化完成... ${DateTime.now().millisecondsSinceEpoch}');
   runApp(const MyApp());
 }
-final dirtyJson = {
-    "user_id": "9981",
-    "name": null, // <-- 这是一个明确的 null 值
-    "is_active": "1",
-    "tags": ["a", "b" ,null],
-    "permissions": {},
-    "mainProduct": {"product_id": 101, "name": "Book"},
-    "metadata": {},
-  };
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -82,7 +79,15 @@ class _MyHomePageState extends State<MyHomePage> {
   //   },
   //   "metadata": [], // 关键测试点: 空列表应被转换为空Map
   // };
-
+final dirtyJson = {
+    "user_id": "9981",
+    "name": null, // <-- 这是一个明确的 null 值
+    "is_active": "1",
+    "tags": ["a", "b" ,null],
+    "permissions": {},
+    "mainProduct": {"product_id": 101, "name": "Book"},
+    "metadata": {},
+  };
   void _incrementCounter() {
     // 2. 核心操作：使用JsonSanitizer和自动生成的公开Schema变量进行清洗
 //     final sanitizedJson = JsonSanitizer.sanitize(
@@ -124,12 +129,17 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void parseAsync() async {
+
+    JsonSanitizer.validate(data: dirtyJson, schema: $UserProfileSchema, modelName: 'UserProfile',onIssuesFound: ({required issues, required modelName}) {
+      print('JsonSanitizer.validate 同步 在模型 $modelName 中 发现问题: $issues ');
+    },);
+
     final profile = await JsonSanitizer.parseAsync<UserProfile>(
       data: dirtyJson,
       schema: $UserProfileSchema,
       fromJson: UserProfile.fromJson,
       modelName: 'UserProfile',
-    monitoredKeys: ['name'], // 我们明确告诉它要监控'name'字段
+      monitoredKeys: ['name'], // 我们明确告诉它要监控'name'字段
       onIssuesFound: ({required issues, required modelName}) {
         print('异步 发现问题: $issues 在模型 $modelName 中 , dirtyJson $dirtyJson');
       },

@@ -8,6 +8,7 @@ import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:stack_trace/stack_trace.dart';
 
+import 'json_parser_worker.dart';
 
 /// 一个可复用的回调函数类型定义，用于上报在数据验证期间发现的问题。
 /// [modelName] 是正在解析的模型的名称。
@@ -33,6 +34,9 @@ class JsonSanitizer {
 
   final Map<String, dynamic> schema;
   final String modelName;
+
+  /// 使用异步方式上报问题时，会在子Isolate中进行
+  /// 需要避免捕获了外部作用域的变量
   final DataIssueCallback? onIssuesFound;
 
   /// 构造函数现在接收上报所需的信息。
@@ -41,6 +45,76 @@ class JsonSanitizer {
     required this.modelName,
     this.onIssuesFound,
   });
+
+  /// [Isolate专用] - 一个特殊的内部构造函数，供后台Isolate使用。
+  factory JsonSanitizer.createInstanceForIsolate({
+    required Map<String, dynamic> schema,
+    required String modelName,
+  }) {
+    return JsonSanitizer._(
+        schema: schema, modelName: modelName, onIssuesFound: null);
+  }
+
+  /// 🧩 [主Isolate专用] - 对原始JSON数据进行验证和上报。
+  static bool validate({
+    required dynamic data,
+    required Map<String, dynamic> schema,
+    required String modelName,
+    DataIssueCallback? onIssuesFound,
+    List<String>? monitoredKeys,
+  }) {
+    // 步骤 1: 验证最外层容器的有效性
+    if (data == null || data is! Map<String, dynamic>) {
+      onIssuesFound?.call(
+        modelName: modelName,
+        issues: [
+          "Response body is null or not a valid JSON object. Received: $data"
+        ],
+      );
+      return false;
+    }
+
+    // 步骤 2: (可选) 处理空Map的情况
+    if (data.isEmpty) {
+      return false;
+    }
+
+    // 对原始的、未经处理的`data`进行验证和上报
+    if (onIssuesFound != null) {
+      // 决定要验证哪些字段。如果用户指定了列表，就用它；否则，默认使用schema中的所有字段。
+      final keysToValidate = monitoredKeys ?? schema.keys.toList();
+      final validationIssues = <String>[];
+
+      for (final key in keysToValidate) {
+        final value = data[key];
+        if (value == null) {
+          validationIssues.add("'$key' is null");
+        } else if (value is String && value.isEmpty) {
+          validationIssues.add("'$key' is an empty string");
+        } else if (value is List && value.isEmpty) {
+          // 仅当期望的类型是列表时，才将空列表视为一个“问题”。
+          final expectedType = schema[key];
+          if (expectedType is ListSchema) {
+            validationIssues.add("'$key' is an empty list");
+          }
+        } else if (value is Map && value.isEmpty) {
+          final expectedType = schema[key];
+          // 我们只关心那些本应是嵌套对象 (MapSchema 或自定义模型)
+          // 却返回了空Map的情况。
+          if (expectedType is MapSchema ||
+              expectedType is Map<String, dynamic>) {
+            validationIssues.add("'$key' is an empty map {}");
+          }
+        }
+      }
+
+      // 如果发现了任何问题，就通过回调执行上报
+      if (validationIssues.isNotEmpty) {
+        onIssuesFound(modelName: modelName, issues: validationIssues);
+      }
+    }
+    return true;
+  }
 
   /// 一个健壮的、一体化的API响应解析器。
   ///
@@ -70,59 +144,14 @@ class JsonSanitizer {
   }) {
     // 优先使用局部传入的回调。如果局部回调为null，则使用全局默认回调。
     final effectiveCallback = onIssuesFound ?? globalDataIssueCallback;
-
-    // 步骤 1: 验证最外层容器的有效性
-    if (data == null || data is! Map<String, dynamic>) {
-      effectiveCallback?.call(
+    // 验证数据是否符合预期的Schema
+    final isValid = JsonSanitizer.validate(
+        data: data,
+        schema: schema,
         modelName: modelName,
-        issues: [
-          "Response body is null or not a valid JSON object. Received: $data"
-        ],
-      );
-      return null;
-    }
-
-    // 步骤 2: (可选) 处理空Map的情况
-    if (data.isEmpty) {
-      // 通常，一个空的JSON对象是合法的，可以解析为一个具有默认值的模型。
-      // 如果您的业务逻辑视其为无效，可以在这里返回null。
-      return fromJson({});
-    }
-
-      // 对原始的、未经处理的`data`进行验证和上报
-      if (effectiveCallback != null) {
-        // 决定要验证哪些字段。如果用户指定了列表，就用它；否则，默认使用schema中的所有字段。
-        final keysToValidate = monitoredKeys ?? schema.keys.toList();
-        final validationIssues = <String>[];
-
-        for (final key in keysToValidate) {
-          final value = data[key];
-          if (value == null) {
-            validationIssues.add("'$key' is null");
-          } else if (value is String && value.isEmpty) {
-            validationIssues.add("'$key' is an empty string");
-          } else if (value is List && value.isEmpty) {
-            // 仅当期望的类型是列表时，才将空列表视为一个“问题”。
-            final expectedType = schema[key];
-            if (expectedType is ListSchema) {
-              validationIssues.add("'$key' is an empty list");
-            }
-          } else if (value is Map && value.isEmpty) {
-            final expectedType = schema[key];
-            // 我们只关心那些本应是嵌套对象 (MapSchema 或自定义模型)
-            // 却返回了空Map的情况。
-            if (expectedType is MapSchema ||
-                expectedType is Map<String, dynamic>) {
-              validationIssues.add("'$key' is an empty map {}");
-            }
-          }
-        }
-
-        // 如果发现了任何问题，就通过回调执行上报
-        if (validationIssues.isNotEmpty) {
-          effectiveCallback(modelName: modelName, issues: validationIssues);
-        }
-      }
+        onIssuesFound: effectiveCallback,
+        monitoredKeys: monitoredKeys);
+    if (!isValid) return fromJson({});
     //  清洗和解析
     try {
       // 调用内部的、私有的 _sanitize 方法来执行实际的数据清洗
@@ -132,7 +161,7 @@ class JsonSanitizer {
         modelName: modelName,
         onIssuesFound: effectiveCallback,
       );
-      final sanitizedJson = sanitizer._processMap(data);
+      final sanitizedJson = sanitizer.processMap(data);
       // 使用清洗后的、类型安全的数据来创建模型实例
       return fromJson(sanitizedJson);
     } catch (e, stackTrace) {
@@ -147,8 +176,7 @@ class JsonSanitizer {
     }
   }
 
-  
-    /// 🚀 异步版 - 适用于大型 JSON，自动在独立 isolate 执行
+  /// 🚀 异步版 - 适用于大型 JSON，自动在独立 isolate 执行
   static Future<T?> parseAsync<T>({
     required dynamic data,
     required Map<String, dynamic> schema,
@@ -157,29 +185,36 @@ class JsonSanitizer {
     DataIssueCallback? onIssuesFound,
     List<String>? monitoredKeys,
   }) async {
+    final effectiveCallback = onIssuesFound ?? globalDataIssueCallback;
+    // 验证数据是否符合预期的Schema
+    final isValid = JsonSanitizer.validate(
+        data: data,
+        schema: schema,
+        modelName: modelName,
+        onIssuesFound: effectiveCallback,
+        monitoredKeys: monitoredKeys);
+    if (!isValid) return fromJson({});
+    // 只将【清洗和解析】这个纯计算任务和纯数据发送到后台 Isolate。
     try {
-      final result = await Isolate.run<T?>(() {
-        return JsonSanitizer.parse<T>(
-          data: data,
-          schema: schema,
-          fromJson: fromJson,
-          modelName: modelName,
-          onIssuesFound: onIssuesFound,
-          monitoredKeys: monitoredKeys,
-        );
-      });
-      return result;
+      final sanitizedJson = await JsonParserWorker.instance
+          .sanitizeJson(data: data, schema: schema, modelName: modelName);
+      if (sanitizedJson != null) {
+        return fromJson(sanitizedJson);
+      }
+      return null;
     } catch (e, stackTrace) {
+      // 捕获后台的纯解析异常，并在【主 Isolate】中上报。
       _reportError(
         modelName: modelName,
         exception: e,
         stackTrace: stackTrace,
-        onIssuesFound: onIssuesFound ?? globalDataIssueCallback,
+        onIssuesFound: effectiveCallback,
       );
       return null;
     }
   }
-  Map<String, dynamic> _processMap(Map<String, dynamic> map) {
+
+  Map<String, dynamic> processMap(Map<String, dynamic> map) {
     final newMap = <String, dynamic>{};
     map.forEach((key, value) {
       if (value == null) {
@@ -272,7 +307,7 @@ class JsonSanitizer {
           modelName: key, // 使用字段名作为嵌套模型的名
           onIssuesFound: onIssuesFound,
         );
-        return nestedSanitizer._processMap(value);
+        return nestedSanitizer.processMap(value);
       }
       // --- 关键改动：调用上报方法 ---
       _reportStructuralError(
