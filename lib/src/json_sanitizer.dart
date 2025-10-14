@@ -6,6 +6,7 @@ import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:stack_trace/stack_trace.dart';
 
+
 /// 一个可复用的回调函数类型定义，用于上报在数据验证期间发现的问题。
 /// [modelName] 是正在解析的模型的名称。
 /// [issues] 是一个描述性字符串列表，说明了发现的具体问题。
@@ -163,18 +164,48 @@ class JsonSanitizer {
 
   dynamic _convertValue(dynamic value, dynamic expectedSchema, String key) {
     // 关键场景：期望得到Map，但后端返回了空List []
+    // --- 修复场景 1: 期望 Map 却收到 List ---
     final isExpectingMap =
         expectedSchema is MapSchema || expectedSchema is Map<String, dynamic>;
     if (isExpectingMap && value is List && value.isEmpty) {
-      // if (kDebugMode) {
-      //   debugPrint(
-      //       'JsonSanitizer Info: Converting empty List [] to empty Map {} for key "$key".');
-      // }
-      // 显式地创建一个类型为 Map<String, dynamic> 的空Map
       return <String, dynamic>{};
     }
+    // --- 修复场景 2: 期望 List 却收到 Map ---
+    if (expectedSchema is ListSchema && value is Map) {
+      _reportStructuralError(
+        key: key,
+        expectedType: 'List',
+        receivedValue: value,
+      );
+      return [];
+    }
+    // --- 修复场景 3: 字符串被误作 Map 或 List ---
+    if ((expectedSchema is MapSchema || expectedSchema is Map<String, dynamic>) &&
+        value is String) {
+      if (value.trim().isEmpty) {
+        _reportStructuralError(
+          key: key,
+          expectedType: 'Map<String, dynamic>',
+          receivedValue: value,
+        );
+        return <String, dynamic>{};
+      }
+    }
+    // --- 修复场景 4: 字符串被误作 List ---
+    if (expectedSchema is ListSchema && value is String) {
+      // 允许逗号分隔字符串转 List
+      if (value.contains(',')) {
+        return value.split(',').map((e) => e.trim()).toList();
+      }
+      _reportStructuralError(
+        key: key,
+        expectedType: 'List',
+        receivedValue: value,
+      );
+      return [];
+    }
 
-    // 场景1: 处理 List
+    // 场景: 处理 List
     if (expectedSchema is ListSchema) {
       if (value is List) {
         return value
@@ -189,7 +220,7 @@ class JsonSanitizer {
       return []; // 返回安全的空List
     }
 
-    // 场景2: 处理 Map
+    // 场景: 处理 Map
     if (expectedSchema is MapSchema) {
       if (value is Map) {
         return value.map((k, v) => MapEntry(
@@ -203,7 +234,7 @@ class JsonSanitizer {
       return {}; // 返回安全的空Map
     }
 
-    // 场景3: 处理嵌套的自定义模型
+    // 场景: 处理嵌套的自定义模型
     if (expectedSchema is Map<String, dynamic>) {
       if (value is Map<String, dynamic>) {
         // 为嵌套调用创建一个新的Sanitizer实例
@@ -223,7 +254,7 @@ class JsonSanitizer {
       return <String, dynamic>{}; // 返回安全的默认值
     }
 
-    // 场景4: 处理基础类型
+    // 场景: 处理基础类型
     if (expectedSchema is Type) {
       try {
         if (expectedSchema == int) {
