@@ -8,7 +8,15 @@ import 'models/user_profile.dart';
 void main() {
   runApp(const MyApp());
 }
-
+final dirtyJson = {
+    "user_id": "9981",
+    "name": null, // <-- 这是一个明确的 null 值
+    "is_active": "1",
+    "tags": ["a", "b" ,null],
+    "permissions": {},
+    "mainProduct": {"product_id": 101, "name": "Book"},
+    "metadata": {},
+  };
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -62,15 +70,18 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   String title = '开始净化脏数据';
   //定义脏数据
-  final dirtyJson = {
-    "user_id": "9981",
-    "name": 12345,
-    "is_active": "1",
-    "tags": [10, "flutter", true, null],
-    "permissions": {"read": "1", "write": 0, "admin": null},
-    "mainProduct": {"product_id": 101.0, "name":["My Awesome Product"]},
-    "metadata": [], // 关键测试点: 空列表应被转换为空Map
-  };
+  // final dirtyJson = {
+  //   "user_id": "9981",
+  //   "name": 12345,
+  //   "is_active": "1",
+  //   "tags": [10, "flutter", true, null],
+  //   "permissions": {"read": "1", "write": 0, "admin": null},
+  //   "mainProduct": {
+  //     "product_id": 101.0,
+  //     "name": ["My Awesome Product"]
+  //   },
+  //   "metadata": [], // 关键测试点: 空列表应被转换为空Map
+  // };
 
   void _incrementCounter() {
     // 2. 核心操作：使用JsonSanitizer和自动生成的公开Schema变量进行清洗
@@ -97,15 +108,33 @@ class _MyHomePageState extends State<MyHomePage> {
 //       });
 //     }
 
-    final profile = JsonSanitizer.parse<UserProfile>(
-        data: dirtyJson,
-        schema: $UserProfileSchema,
-        fromJson: UserProfile.fromJson,
-        modelName: 'UserProfile',
-        onIssuesFound: ({required issues, required modelName}) {
-          print('发现问题: $issues 在模型 $modelName 中');
-        },);
-    print('解析后的模型: ${jsonEncode(profile)}');    
+    //同步解析
+    // final profile = JsonSanitizer.parse<UserProfile>(
+    //   data: dirtyJson,
+    //   schema: $UserProfileSchema,
+    //   fromJson: UserProfile.fromJson,
+    //   modelName: 'UserProfile',
+    //   onIssuesFound: ({required issues, required modelName}) {
+    //     print('发现问题: $issues 在模型 $modelName 中');
+    //   },
+    // );
+    // print('解析后的模型: ${jsonEncode(profile)}');
+
+    parseAsync();
+  }
+
+  void parseAsync() async {
+    final profile = await JsonSanitizer.parseAsync<UserProfile>(
+      data: dirtyJson,
+      schema: $UserProfileSchema,
+      fromJson: UserProfile.fromJson,
+      modelName: 'UserProfile',
+    monitoredKeys: ['name'], // 我们明确告诉它要监控'name'字段
+      onIssuesFound: ({required issues, required modelName}) {
+        print('异步 发现问题: $issues 在模型 $modelName 中 , dirtyJson $dirtyJson');
+      },
+    );
+    print('异步 解析后的模型: ${jsonEncode(profile)}');
   }
 
   @override

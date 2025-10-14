@@ -1,6 +1,8 @@
 // 引入Firebase Crashlytics (可选)
 // import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
+import 'dart:isolate';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
 import 'package:json_annotation/json_annotation.dart';
@@ -57,6 +59,7 @@ class JsonSanitizer {
   ///
   /// 如果数据从根本上无效（例如，不是一个Map）或在解析过程中发生异常，则返回`null`。
   /// 否则，返回成功解析后的模型实例。
+  /// 🧩 同步版 - 适用于小中型 JSON
   static T? parse<T>({
     required dynamic data,
     required Map<String, dynamic> schema,
@@ -144,6 +147,38 @@ class JsonSanitizer {
     }
   }
 
+  
+    /// 🚀 异步版 - 适用于大型 JSON，自动在独立 isolate 执行
+  static Future<T?> parseAsync<T>({
+    required dynamic data,
+    required Map<String, dynamic> schema,
+    required T Function(Map<String, dynamic>) fromJson,
+    required String modelName,
+    DataIssueCallback? onIssuesFound,
+    List<String>? monitoredKeys,
+  }) async {
+    try {
+      final result = await Isolate.run<T?>(() {
+        return JsonSanitizer.parse<T>(
+          data: data,
+          schema: schema,
+          fromJson: fromJson,
+          modelName: modelName,
+          onIssuesFound: onIssuesFound,
+          monitoredKeys: monitoredKeys,
+        );
+      });
+      return result;
+    } catch (e, stackTrace) {
+      _reportError(
+        modelName: modelName,
+        exception: e,
+        stackTrace: stackTrace,
+        onIssuesFound: onIssuesFound ?? globalDataIssueCallback,
+      );
+      return null;
+    }
+  }
   Map<String, dynamic> _processMap(Map<String, dynamic> map) {
     final newMap = <String, dynamic>{};
     map.forEach((key, value) {
@@ -163,46 +198,40 @@ class JsonSanitizer {
   }
 
   dynamic _convertValue(dynamic value, dynamic expectedSchema, String key) {
-    // 关键场景：期望得到Map，但后端返回了空List []
-    // --- 修复场景 1: 期望 Map 却收到 List ---
+    // --- 结构性错误修复（优化和整合后）---
     final isExpectingMap =
         expectedSchema is MapSchema || expectedSchema is Map<String, dynamic>;
-    if (isExpectingMap && value is List && value.isEmpty) {
-      return <String, dynamic>{};
-    }
-    // --- 修复场景 2: 期望 List 却收到 Map ---
-    if (expectedSchema is ListSchema && value is Map) {
-      _reportStructuralError(
-        key: key,
-        expectedType: 'List',
-        receivedValue: value,
-      );
-      return [];
-    }
-    // --- 修复场景 3: 字符串被误作 Map 或 List ---
-    if ((expectedSchema is MapSchema || expectedSchema is Map<String, dynamic>) &&
-        value is String) {
-      if (value.trim().isEmpty) {
+    if (isExpectingMap) {
+      if (value is List && value.isEmpty) {
+        // 空List -> 空Map
         _reportStructuralError(
-          key: key,
-          expectedType: 'Map<String, dynamic>',
-          receivedValue: value,
-        );
+            key: key, expectedType: 'Map', receivedValue: value);
+        return <String, dynamic>{};
+      }
+      if (value is String && value.trim().isEmpty) {
+        // 空String -> 空Map
+        _reportStructuralError(
+            key: key, expectedType: 'Map', receivedValue: value);
         return <String, dynamic>{};
       }
     }
-    // --- 修复场景 4: 字符串被误作 List ---
-    if (expectedSchema is ListSchema && value is String) {
-      // 允许逗号分隔字符串转 List
-      if (value.contains(',')) {
-        return value.split(',').map((e) => e.trim()).toList();
+    if (expectedSchema is ListSchema) {
+      if (value is Map) {
+        // Map -> 空List
+        _reportStructuralError(
+            key: key, expectedType: 'List', receivedValue: value);
+        return [];
       }
-      _reportStructuralError(
-        key: key,
-        expectedType: 'List',
-        receivedValue: value,
-      );
-      return [];
+      if (value is String) {
+        // String -> List (支持逗号分隔)
+        _reportStructuralError(
+            key: key, expectedType: 'List', receivedValue: value);
+        return value
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+      }
     }
 
     // 场景: 处理 List
