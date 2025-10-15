@@ -74,13 +74,18 @@ _$MetadataImpl _$$MetadataImplFromJson(Map<String, dynamic> json) =>
       r'_$MetadataImpl',
       json,
       ($checkedConvert) {
-        final val = _$MetadataImpl();
+        final val = _$MetadataImpl(
+          $checkedConvert('meta_data', (v) => v as String?),
+        );
         return val;
       },
+      fieldKeyMap: const {'metaData': 'meta_data'},
     );
 
 Map<String, dynamic> _$$MetadataImplToJson(_$MetadataImpl instance) =>
-    <String, dynamic>{};
+    <String, dynamic>{
+      'meta_data': instance.metaData,
+    };
 
 _$PermissionsImpl _$$PermissionsImplFromJson(Map<String, dynamic> json) =>
     $checkedCreate(

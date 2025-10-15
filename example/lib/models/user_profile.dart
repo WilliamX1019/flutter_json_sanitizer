@@ -53,7 +53,10 @@ class MainProduct with _$MainProduct {
 @freezed
 @generateSchema
 class Metadata with _$Metadata {
-    const factory Metadata() = _Metadata;
+    const factory Metadata(
+      @JsonKey(name: "meta_data")
+        String? metaData,
+    ) = _Metadata;
 
     factory Metadata.fromJson(Map<String, dynamic> json) => _$MetadataFromJson(json);
 }

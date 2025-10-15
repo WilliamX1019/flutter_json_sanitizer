@@ -568,14 +568,25 @@ Metadata _$MetadataFromJson(Map<String, dynamic> json) {
 
 /// @nodoc
 mixin _$Metadata {
+  @JsonKey(name: "meta_data")
+  String? get metaData => throw _privateConstructorUsedError;
+
   /// Serializes this Metadata to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of Metadata
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $MetadataCopyWith<Metadata> get copyWith =>
+      throw _privateConstructorUsedError;
 }
 
 /// @nodoc
 abstract class $MetadataCopyWith<$Res> {
   factory $MetadataCopyWith(Metadata value, $Res Function(Metadata) then) =
       _$MetadataCopyWithImpl<$Res, Metadata>;
+  @useResult
+  $Res call({@JsonKey(name: "meta_data") String? metaData});
 }
 
 /// @nodoc
@@ -590,13 +601,29 @@ class _$MetadataCopyWithImpl<$Res, $Val extends Metadata>
 
   /// Create a copy of Metadata
   /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? metaData = freezed,
+  }) {
+    return _then(_value.copyWith(
+      metaData: freezed == metaData
+          ? _value.metaData
+          : metaData // ignore: cast_nullable_to_non_nullable
+              as String?,
+    ) as $Val);
+  }
 }
 
 /// @nodoc
-abstract class _$$MetadataImplCopyWith<$Res> {
+abstract class _$$MetadataImplCopyWith<$Res>
+    implements $MetadataCopyWith<$Res> {
   factory _$$MetadataImplCopyWith(
           _$MetadataImpl value, $Res Function(_$MetadataImpl) then) =
       __$$MetadataImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({@JsonKey(name: "meta_data") String? metaData});
 }
 
 /// @nodoc
@@ -609,30 +636,57 @@ class __$$MetadataImplCopyWithImpl<$Res>
 
   /// Create a copy of Metadata
   /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? metaData = freezed,
+  }) {
+    return _then(_$MetadataImpl(
+      freezed == metaData
+          ? _value.metaData
+          : metaData // ignore: cast_nullable_to_non_nullable
+              as String?,
+    ));
+  }
 }
 
 /// @nodoc
 @JsonSerializable()
 class _$MetadataImpl implements _Metadata {
-  const _$MetadataImpl();
+  const _$MetadataImpl(@JsonKey(name: "meta_data") this.metaData);
 
   factory _$MetadataImpl.fromJson(Map<String, dynamic> json) =>
       _$$MetadataImplFromJson(json);
 
   @override
+  @JsonKey(name: "meta_data")
+  final String? metaData;
+
+  @override
   String toString() {
-    return 'Metadata()';
+    return 'Metadata(metaData: $metaData)';
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
-        (other.runtimeType == runtimeType && other is _$MetadataImpl);
+        (other.runtimeType == runtimeType &&
+            other is _$MetadataImpl &&
+            (identical(other.metaData, metaData) ||
+                other.metaData == metaData));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => runtimeType.hashCode;
+  int get hashCode => Object.hash(runtimeType, metaData);
+
+  /// Create a copy of Metadata
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$MetadataImplCopyWith<_$MetadataImpl> get copyWith =>
+      __$$MetadataImplCopyWithImpl<_$MetadataImpl>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
@@ -643,10 +697,22 @@ class _$MetadataImpl implements _Metadata {
 }
 
 abstract class _Metadata implements Metadata {
-  const factory _Metadata() = _$MetadataImpl;
+  const factory _Metadata(@JsonKey(name: "meta_data") final String? metaData) =
+      _$MetadataImpl;
 
   factory _Metadata.fromJson(Map<String, dynamic> json) =
       _$MetadataImpl.fromJson;
+
+  @override
+  @JsonKey(name: "meta_data")
+  String? get metaData;
+
+  /// Create a copy of Metadata
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$MetadataImplCopyWith<_$MetadataImpl> get copyWith =>
+      throw _privateConstructorUsedError;
 }
 
 Permissions _$PermissionsFromJson(Map<String, dynamic> json) {

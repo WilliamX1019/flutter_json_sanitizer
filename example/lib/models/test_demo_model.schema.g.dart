@@ -1,28 +1,23 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'user_profile.dart';
+part of 'test_demo_model.dart';
 
 // **************************************************************************
 // SchemaGenerator
 // **************************************************************************
 
-const Map<String, dynamic> $UserProfileSchema = {
-  'user_id': int,
+const Map<String, dynamic> $TestDemoModelSchema = {
+  'userId': int,
   'name': String,
-  'is_active': bool,
+  'isActive': bool,
   'tags': ListSchema(String),
   'permissions': $PermissionsSchema,
   'mainProduct': $MainProductSchema,
-  'metadata': $MetadataSchema,
 };
 
 const Map<String, dynamic> $MainProductSchema = {
-  'product_id': int,
+  'productId': int,
   'name': String,
-};
-
-const Map<String, dynamic> $MetadataSchema = {
-  'meta_data': String,
 };
 
 const Map<String, dynamic> $PermissionsSchema = {

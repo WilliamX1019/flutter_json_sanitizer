@@ -8,9 +8,15 @@ import 'models/user_profile.dart';
 void main() async{
   WidgetsFlutterBinding.ensureInitialized();
   // --- 2. 在应用启动时，初始化Worker ---
-  print('初始化Worker... ${DateTime.now().millisecondsSinceEpoch}');
-  await JsonParserWorker.instance.initialize();
-  print('Worker初始化完成... ${DateTime.now().millisecondsSinceEpoch}');
+  try{
+    print('初始化Worker... ${DateTime.now().millisecondsSinceEpoch}');
+    await JsonParserWorker.instance.initialize();
+    print('Worker初始化完成... ${DateTime.now().millisecondsSinceEpoch}');
+  } catch(e) {
+    print('初始化Worker失败... $e');
+    print("FATAL: JsonParserWorker could not be initialized. App functionality will be degraded.");
+  }
+
   runApp(const MyApp());
 }
 
@@ -86,7 +92,7 @@ final dirtyJson = {
     "tags": ["a", "b" ,null],
     "permissions": {},
     "mainProduct": {"product_id": 101, "name": "Book"},
-    "metadata": {},
+    "metadata": [],
   };
   void _incrementCounter() {
     // 2. 核心操作：使用JsonSanitizer和自动生成的公开Schema变量进行清洗
