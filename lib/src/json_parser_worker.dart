@@ -25,7 +25,7 @@ class JsonParserWorker {
   ///   将抛出一个`TimeoutException`。
   ///
   /// 如果成功，此`Future`会正常完成。如果失败，它会抛出一个描述性异常。
-  Future<void> initialize({Duration timeout = const Duration(seconds: 1)}) async {
+  Future<void> initialize({Duration timeout = const Duration(seconds: 5)}) async {
     // 防止重复初始化
     if (isInitialized) {
       if (kDebugMode) print("ℹ️ JsonParserWorker is already initialized.");
