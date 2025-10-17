@@ -75,7 +75,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenerateSchema> {
         type.isDartCoreDouble ||
         type.isDartCoreBool ||
         type.isDartCoreObject) {
-      final typeString = type.getDisplayString();
+      final typeString = type.getDisplayString(withNullability: true);
       return typeString.endsWith('?')
           ? typeString.substring(0, typeString.length - 1)
           : typeString;

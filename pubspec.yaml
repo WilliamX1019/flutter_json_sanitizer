@@ -14,7 +14,7 @@ dependencies:
   meta: ^1.9.1
   build: ^2.4.1 # 必须添加，PartBuilder 来自这里
   source_gen: ^1.4.0
-  analyzer: ^6.2.0
+  analyzer: ^5.13.0
   json_annotation: ^4.8.1
   stack_trace: ^1.11.1
 
