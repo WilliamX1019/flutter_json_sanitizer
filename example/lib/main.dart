@@ -136,9 +136,15 @@ final dirtyJson = {
 
   void parseAsync() async {
 
-    JsonSanitizer.validate(data: dirtyJson, schema: $UserProfileSchema, modelName: 'UserProfile',onIssuesFound: ({required issues, required modelName}) {
-      print('JsonSanitizer.validate 同步 在模型 $modelName 中 发现问题: $issues ');
-    },);
+    JsonSanitizer.validate(
+      data: dirtyJson,
+      schema: $UserProfileSchema,
+      modelName: 'UserProfile',
+      onIssuesFound: ({required issues, required modelName}) {
+        print(
+            'JsonSanitizer.validate 同步 在模型 $modelName 中 发现问题: $issues dirtyJson = $dirtyJson');
+      },
+    );
 
     final profile = await JsonSanitizer.parseAsync<UserProfile>(
       data: dirtyJson,
@@ -148,6 +154,7 @@ final dirtyJson = {
       monitoredKeys: ['name'], // 我们明确告诉它要监控'name'字段
       onIssuesFound: ({required issues, required modelName}) {
         print('异步 发现问题: $issues 在模型 $modelName 中 , dirtyJson $dirtyJson');
+       
       },
     );
     print('异步 解析后的模型: ${jsonEncode(profile)}');
