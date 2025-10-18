@@ -1,20 +1,23 @@
 import 'dart:convert';
 
+import 'package:example/models/%E5%A4%9A%E5%B1%82%E5%B5%8C%E5%A5%97%E6%B5%8B%E8%AF%95/product_model.dart';
+import 'package:example/models/%E5%A4%9A%E5%B1%82%E5%B5%8C%E5%A5%97%E6%B5%8B%E8%AF%95/product_model_json.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
 
 import 'models/user_profile.dart';
 
-void main() async{
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // --- 2. 在应用启动时，初始化Worker ---
-  try{
+  try {
     print('初始化Worker... ${DateTime.now().millisecondsSinceEpoch}');
     await JsonParserWorker.instance.initialize();
     print('Worker初始化完成... ${DateTime.now().millisecondsSinceEpoch}');
-  } catch(e) {
+  } catch (e) {
     print('初始化Worker失败... $e');
-    print("FATAL: JsonParserWorker could not be initialized. App functionality will be degraded.");
+    print(
+        "FATAL: JsonParserWorker could not be initialized. App functionality will be degraded.");
   }
 
   runApp(const MyApp());
@@ -85,13 +88,13 @@ class _MyHomePageState extends State<MyHomePage> {
   //   },
   //   "metadata": [], // 关键测试点: 空列表应被转换为空Map
   // };
-final dirtyJson = {
+  final dirtyJson = {
     "user_id": "9981",
     "name": null, // <-- 这是一个明确的 null 值
     "is_active": "1",
-    "tags": ["a", "b" ,null],
+    "tags": ["a", "b", null],
     "permissions": {},
-    "mainProduct": {"product_id": 101, "name": "Book"},
+    "mainProduct": {"product_id": '101', "name": "Book"},
     "metadata": [],
   };
   void _incrementCounter() {
@@ -135,7 +138,6 @@ final dirtyJson = {
   }
 
   void parseAsync() async {
-
     JsonSanitizer.validate(
       data: dirtyJson,
       schema: $UserProfileSchema,
@@ -154,7 +156,21 @@ final dirtyJson = {
       monitoredKeys: ['name'], // 我们明确告诉它要监控'name'字段
       onIssuesFound: ({required issues, required modelName}) {
         print('异步 发现问题: $issues 在模型 $modelName 中 , dirtyJson $dirtyJson');
-       
+      },
+    );
+    print('异步 解析后的模型: ${jsonEncode(profile)}');
+  }
+
+  ///多层嵌套数据的净化
+  void _sanitizeNestedJson() async {
+    print('ProductModelSchema = ${$ProductModelSchema}');
+    final profile = await JsonSanitizer.parseAsync<ProductModel>(
+      data: productModelJson,
+      schema: $ProductModelSchema,
+      fromJson: ProductModel.fromJson,
+      modelName: 'ProductModel',
+      onIssuesFound: ({required issues, required modelName}) {
+        print('异步 发现问题: $issues 在模型 $modelName 中');
       },
     );
     print('异步 解析后的模型: ${jsonEncode(profile)}');
@@ -176,6 +192,12 @@ final dirtyJson = {
             Text(
               title,
               style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            ElevatedButton(
+              onPressed: () {
+                _sanitizeNestedJson();
+              },
+              child: const Text('净化多层嵌套数据'),
             ),
           ],
         ),

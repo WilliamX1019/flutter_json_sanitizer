@@ -12,13 +12,8 @@ const Map<String, dynamic> $UserProfileSchema = {
   'is_active': bool,
   'tags': ListSchema(String),
   'permissions': $PermissionsSchema,
-  'mainProduct': $MainProductSchema,
+  'mainProduct': $ProductSchema,
   'metadata': $MetadataSchema,
-};
-
-const Map<String, dynamic> $MainProductSchema = {
-  'product_id': int,
-  'name': String,
 };
 
 const Map<String, dynamic> $MetadataSchema = {

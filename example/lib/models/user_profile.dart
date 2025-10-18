@@ -2,6 +2,7 @@
 //
 //     final userProfile = userProfileFromJson(jsonString);
 
+import 'package:example/models/product.dart';
 import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'dart:convert';
@@ -29,7 +30,7 @@ class UserProfile with _$UserProfile {
         @JsonKey(name: "permissions")
         Permissions? permissions,
         @JsonKey(name: "mainProduct")
-        MainProduct? mainProduct,
+        Product? mainProduct,
         @JsonKey(name: "metadata")
         Metadata? metadata,
     }) = _UserProfile;
@@ -37,18 +38,18 @@ class UserProfile with _$UserProfile {
     factory UserProfile.fromJson(Map<String, dynamic> json) => _$UserProfileFromJson(json);
 }
 
-@freezed
-@generateSchema
-class MainProduct with _$MainProduct {
-    const factory MainProduct({
-        @JsonKey(name: "product_id")
-        int? productId,
-        @JsonKey(name: "name")
-        String? name,
-    }) = _MainProduct;
+// @freezed
+// @generateSchema
+// class MainProduct with _$MainProduct {
+//     const factory MainProduct({
+//         @JsonKey(name: "product_id")
+//         int? productId,
+//         @JsonKey(name: "name")
+//         String? name,
+//     }) = _MainProduct;
 
-    factory MainProduct.fromJson(Map<String, dynamic> json) => _$MainProductFromJson(json);
-}
+//     factory MainProduct.fromJson(Map<String, dynamic> json) => _$MainProductFromJson(json);
+// }
 
 @freezed
 @generateSchema

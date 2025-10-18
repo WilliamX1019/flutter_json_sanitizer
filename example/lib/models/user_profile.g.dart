@@ -26,7 +26,7 @@ _$UserProfileImpl _$$UserProfileImplFromJson(Map<String, dynamic> json) =>
               'mainProduct',
               (v) => v == null
                   ? null
-                  : MainProduct.fromJson(v as Map<String, dynamic>)),
+                  : Product.fromJson(v as Map<String, dynamic>)),
           metadata: $checkedConvert(
               'metadata',
               (v) => v == null
@@ -47,26 +47,6 @@ Map<String, dynamic> _$$UserProfileImplToJson(_$UserProfileImpl instance) =>
       'permissions': instance.permissions,
       'mainProduct': instance.mainProduct,
       'metadata': instance.metadata,
-    };
-
-_$MainProductImpl _$$MainProductImplFromJson(Map<String, dynamic> json) =>
-    $checkedCreate(
-      r'_$MainProductImpl',
-      json,
-      ($checkedConvert) {
-        final val = _$MainProductImpl(
-          productId: $checkedConvert('product_id', (v) => (v as num?)?.toInt()),
-          name: $checkedConvert('name', (v) => v as String?),
-        );
-        return val;
-      },
-      fieldKeyMap: const {'productId': 'product_id'},
-    );
-
-Map<String, dynamic> _$$MainProductImplToJson(_$MainProductImpl instance) =>
-    <String, dynamic>{
-      'product_id': instance.productId,
-      'name': instance.name,
     };
 
 _$MetadataImpl _$$MetadataImplFromJson(Map<String, dynamic> json) =>

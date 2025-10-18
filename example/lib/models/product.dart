@@ -9,8 +9,10 @@ part 'product.schema.g.dart';
 @generateSchema
 class Product with _$Product {
   const factory Product({
-    @JsonKey(name: 'product_id') required int productId,
-    required String name,
+        @JsonKey(name: "product_id")
+        int? productId,
+        @JsonKey(name: "name")
+        String? name,
   }) = _Product;
 
   factory Product.fromJson(Map<String, dynamic> json) => _$ProductFromJson(json);

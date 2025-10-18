@@ -12,8 +12,8 @@ _$ProductImpl _$$ProductImplFromJson(Map<String, dynamic> json) =>
       json,
       ($checkedConvert) {
         final val = _$ProductImpl(
-          productId: $checkedConvert('product_id', (v) => (v as num).toInt()),
-          name: $checkedConvert('name', (v) => v as String),
+          productId: $checkedConvert('product_id', (v) => (v as num?)?.toInt()),
+          name: $checkedConvert('name', (v) => v as String?),
         );
         return val;
       },

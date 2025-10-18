@@ -20,16 +20,13 @@ Product _$ProductFromJson(Map<String, dynamic> json) {
 
 /// @nodoc
 mixin _$Product {
-  @JsonKey(name: 'product_id')
-  int get productId => throw _privateConstructorUsedError;
-  String get name => throw _privateConstructorUsedError;
+  @JsonKey(name: "product_id")
+  int? get productId => throw _privateConstructorUsedError;
+  @JsonKey(name: "name")
+  String? get name => throw _privateConstructorUsedError;
 
-  /// Serializes this Product to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of Product
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   $ProductCopyWith<Product> get copyWith => throw _privateConstructorUsedError;
 }
 
@@ -38,7 +35,9 @@ abstract class $ProductCopyWith<$Res> {
   factory $ProductCopyWith(Product value, $Res Function(Product) then) =
       _$ProductCopyWithImpl<$Res, Product>;
   @useResult
-  $Res call({@JsonKey(name: 'product_id') int productId, String name});
+  $Res call(
+      {@JsonKey(name: "product_id") int? productId,
+      @JsonKey(name: "name") String? name});
 }
 
 /// @nodoc
@@ -51,23 +50,21 @@ class _$ProductCopyWithImpl<$Res, $Val extends Product>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of Product
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? productId = null,
-    Object? name = null,
+    Object? productId = freezed,
+    Object? name = freezed,
   }) {
     return _then(_value.copyWith(
-      productId: null == productId
+      productId: freezed == productId
           ? _value.productId
           : productId // ignore: cast_nullable_to_non_nullable
-              as int,
-      name: null == name
+              as int?,
+      name: freezed == name
           ? _value.name
           : name // ignore: cast_nullable_to_non_nullable
-              as String,
+              as String?,
     ) as $Val);
   }
 }
@@ -79,7 +76,9 @@ abstract class _$$ProductImplCopyWith<$Res> implements $ProductCopyWith<$Res> {
       __$$ProductImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({@JsonKey(name: 'product_id') int productId, String name});
+  $Res call(
+      {@JsonKey(name: "product_id") int? productId,
+      @JsonKey(name: "name") String? name});
 }
 
 /// @nodoc
@@ -90,23 +89,21 @@ class __$$ProductImplCopyWithImpl<$Res>
       _$ProductImpl _value, $Res Function(_$ProductImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Product
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? productId = null,
-    Object? name = null,
+    Object? productId = freezed,
+    Object? name = freezed,
   }) {
     return _then(_$ProductImpl(
-      productId: null == productId
+      productId: freezed == productId
           ? _value.productId
           : productId // ignore: cast_nullable_to_non_nullable
-              as int,
-      name: null == name
+              as int?,
+      name: freezed == name
           ? _value.name
           : name // ignore: cast_nullable_to_non_nullable
-              as String,
+              as String?,
     ));
   }
 }
@@ -115,17 +112,18 @@ class __$$ProductImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$ProductImpl implements _Product {
   const _$ProductImpl(
-      {@JsonKey(name: 'product_id') required this.productId,
-      required this.name});
+      {@JsonKey(name: "product_id") this.productId,
+      @JsonKey(name: "name") this.name});
 
   factory _$ProductImpl.fromJson(Map<String, dynamic> json) =>
       _$$ProductImplFromJson(json);
 
   @override
-  @JsonKey(name: 'product_id')
-  final int productId;
+  @JsonKey(name: "product_id")
+  final int? productId;
   @override
-  final String name;
+  @JsonKey(name: "name")
+  final String? name;
 
   @override
   String toString() {
@@ -142,13 +140,11 @@ class _$ProductImpl implements _Product {
             (identical(other.name, name) || other.name == name));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(runtimeType, productId, name);
 
-  /// Create a copy of Product
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$ProductImplCopyWith<_$ProductImpl> get copyWith =>
@@ -164,21 +160,19 @@ class _$ProductImpl implements _Product {
 
 abstract class _Product implements Product {
   const factory _Product(
-      {@JsonKey(name: 'product_id') required final int productId,
-      required final String name}) = _$ProductImpl;
+      {@JsonKey(name: "product_id") final int? productId,
+      @JsonKey(name: "name") final String? name}) = _$ProductImpl;
 
   factory _Product.fromJson(Map<String, dynamic> json) = _$ProductImpl.fromJson;
 
   @override
-  @JsonKey(name: 'product_id')
-  int get productId;
+  @JsonKey(name: "product_id")
+  int? get productId;
   @override
-  String get name;
-
-  /// Create a copy of Product
-  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(name: "name")
+  String? get name;
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$ProductImplCopyWith<_$ProductImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
