@@ -9,6 +9,7 @@ import 'package:json_annotation/json_annotation.dart';
 import 'package:stack_trace/stack_trace.dart';
 
 import 'json_parser_worker.dart';
+import 'model_registry.dart';
 
 /// 一个可复用的回调函数类型定义，用于上报在数据验证期间发现的问题。
 /// [modelName] 是正在解析的模型的名称。
@@ -185,6 +186,9 @@ class JsonSanitizer {
     DataIssueCallback? onIssuesFound,
     List<String>? monitoredKeys,
   }) async {
+    ///! 完成模型注册，确保在后台 Isolate 中可用。
+    // ModelRegistry.register<T>(modelName, (json) => fromJson(json));
+
     final effectiveCallback = onIssuesFound ?? globalDataIssueCallback;
     // 验证数据是否符合预期的Schema
     final isValid = JsonSanitizer.validate(
@@ -196,6 +200,7 @@ class JsonSanitizer {
     if (!isValid) return fromJson({});
     // 只将【清洗和解析】这个纯计算任务和纯数据发送到后台 Isolate。
     try {
+      //现在是纯数据清洗，解析在主 Isolate 中进行。
       final sanitizedJson = await JsonParserWorker.instance
           .sanitizeJson(data: data, schema: schema, modelName: modelName,);
       if (sanitizedJson != null) {

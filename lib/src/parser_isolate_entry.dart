@@ -8,7 +8,7 @@ import 'package:flutter_json_sanitizer/src/worker_protocol.dart';
 // send(task2)  -----> | [task1, task2]                                        |
 // send(task3)  -----> | [task1, task2, task3]                                 |
 //                     |                                                       | (Worker 正在打盹...)
-//                     |                                                       | 
+//                     |                                                       |
 //                     | (新消息到达，Worker 被唤醒)                             |
 //                     | [task2, task3] (task1 被取出)                         | ----> 开始处理 task1
 //                     |                                                       |       ... (清洗 task1 的数据)
@@ -39,8 +39,8 @@ class PingTask {
 /// 长期驻留的 Isolate 的入口点。
 /// Worker Isolate的入口函数（带心跳响应）
 Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
-  final workerPort = ReceivePort();     // 普通任务端口
-  final heartbeatPort = ReceivePort();  // 心跳端口
+  final workerPort = ReceivePort(); // 普通任务端口
+  final heartbeatPort = ReceivePort(); // 心跳端口
 
   mainPort.send({
     'worker': workerPort.sendPort,
@@ -63,6 +63,18 @@ Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
           modelName: message.modelName,
         );
         final sanitizedJson = sanitizer.processMap(message.data);
+        message.replyPort.send(ParseResult.success(sanitizedJson));
+      } catch (e, s) {
+        message.replyPort.send(ParseResult.failure(e, s));
+      }
+    } else if (message is ParseAndModelTask) {
+      try {
+        final sanitizer = JsonSanitizer.createInstanceForIsolate(
+          schema: message.schema,
+          modelName: message.modelName,
+        );
+        final sanitizedJson = sanitizer.processMap(message.data);
+        // 这里只能返回清洗后的JSON，让主线程再转模型
         message.replyPort.send(ParseResult.success(sanitizedJson));
       } catch (e, s) {
         message.replyPort.send(ParseResult.failure(e, s));
