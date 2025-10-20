@@ -1,88 +1,238 @@
-// 在 flutter_json_sanitizer/lib/src/worker_isolate.dart 或类似文件中
-
 import 'dart:async';
 import 'dart:isolate';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
 import 'package:flutter_json_sanitizer/src/parser_isolate_entry.dart';
 import 'package:flutter_json_sanitizer/src/worker_protocol.dart';
 
 /// 一个管理长期驻留的JSON解析Worker Isolate的单例服务。
-/// 设计用于在应用启动时进行一次性的、健壮的初始化。
+/// 支持自动恢复机制，当后台Isolate崩溃或退出时自动重启。
+/// 1.	检测 Isolate 异常退出或错误（通过 onError / onExit 信号）
+/// 2.	自动重启并重新建立握手
+/// 3.	线程安全的状态切换（防止在恢复过程中派发任务）
+/// 4.	带最大重试次数与退避间隔（防止无限重启循环）
+/// 
+/// 
+//  ┌──────────────────────────────┐
+//  │  sanitizeJson(...) 调用开始  │
+//  └──────────────┬───────────────┘
+//                 │
+//                 ▼
+//      判断 health.status 是否正常？
+//           │
+//           ├── 是 ✅ → 发任务到 Worker → 正常返回结果
+//           │
+//           └── 否 ⚠️ → 回退到主线程执行 JsonSanitizer
+//                 │
+//                 ▼
+//        主线程直接运行 schema 校验和清洗逻辑
+//                 │
+//                 ▼
+//            返回兜底结果
+
+/// Worker 状态枚举
+enum WorkerStatus { healthy, unresponsive, restarting, stopped }
+
+/// Worker 健康信息快照
+class JsonParserWorkerHealth {
+  final bool isAlive;
+  final Duration? lastPongAgo;
+  final int restartAttempts;
+  final WorkerStatus status;
+
+  const JsonParserWorkerHealth({
+    required this.isAlive,
+    this.lastPongAgo,
+    required this.restartAttempts,
+    required this.status,
+  });
+
+  @override
+  String toString() {
+    final ago = lastPongAgo != null
+        ? "${lastPongAgo!.inSeconds}.${(lastPongAgo!.inMilliseconds % 1000) ~/ 100}s"
+        : "N/A";
+    return "JsonParserWorkerHealth(isAlive: $isAlive, lastPongAgo: $ago, "
+        "restartAttempts: $restartAttempts, status: $status)";
+  }
+}
+
+
+
 class JsonParserWorker {
   JsonParserWorker._();
   static final JsonParserWorker instance = JsonParserWorker._();
 
   SendPort? _workerSendPort;
   Isolate? _isolate;
+  ReceivePort? _monitorPort;
+
   bool get isInitialized => _workerSendPort != null;
 
-  /// [启动时专用] - 初始化并启动Worker Isolate。
-  ///
-  /// 这个方法被设计为在应用启动的关键路径上调用。它内置了超时和
-  /// 详尽的错误监听，以确保它能在确定的时间内返回一个成功或失败的结果。
-  ///
-  /// - [timeout]: 等待Isolate启动并完成握手的最大时长。如果超时，
-  ///   将抛出一个`TimeoutException`。
-  ///
-  /// 如果成功，此`Future`会正常完成。如果失败，它会抛出一个描述性异常。
+  // ==== 自动恢复配置 ====
+  final bool _autoRecoveryEnabled = true;
+  int _restartAttempts = 0;
+  final int _maxRestartAttempts = 3;
+  final Duration _restartDelay = const Duration(seconds: 1);
+
+  // ==== 心跳检测配置 ====
+  Timer? _heartbeatTimer;
+  final Duration _heartbeatInterval = const Duration(seconds: 5);
+  final Duration _heartbeatTimeout = const Duration(seconds: 5);
+  DateTime? _lastPongTime;
+  // ==== 健康状态 ====
+  WorkerStatus _lastStatus = WorkerStatus.stopped;
+
+  /// 对外暴露的健康快照
+  JsonParserWorkerHealth get health {
+    final now = DateTime.now();
+    final lastPongAgo =
+        _lastPongTime != null ? now.difference(_lastPongTime!) : null;
+
+    bool alive = isInitialized && _isolate != null;
+    WorkerStatus status;
+
+    if (!alive) {
+      status = WorkerStatus.stopped;
+    } else if (_lastStatus == WorkerStatus.restarting) {
+      status = WorkerStatus.restarting;
+    } else if (lastPongAgo != null &&
+        lastPongAgo > _heartbeatInterval * 2) {
+      status = WorkerStatus.unresponsive;
+    } else {
+      status = WorkerStatus.healthy;
+    }
+
+    _lastStatus = status;
+
+    return JsonParserWorkerHealth(
+      isAlive: alive,
+      lastPongAgo: lastPongAgo,
+      restartAttempts: _restartAttempts,
+      status: status,
+    );
+  }
+    /// 初始化并启动Worker Isolate。
   Future<void> initialize({Duration timeout = const Duration(seconds: 5)}) async {
-    // 防止重复初始化
     if (isInitialized) {
       if (kDebugMode) print("ℹ️ JsonParserWorker is already initialized.");
       return;
     }
 
-    // Completer 用于统一处理来自 Isolate 的握手成功信号或启动时错误信号。
+    await _startWorker(timeout: timeout);
+    _startHeartbeat();
+  }
+
+  /// 实际的Isolate启动逻辑
+  Future<void> _startWorker({required Duration timeout}) async {
     final completer = Completer<SendPort>();
     final mainPort = ReceivePort();
+    _monitorPort = ReceivePort();
 
-    // 监听来自 Isolate 的第一条消息。
     mainPort.listen((message) {
-      // Isolate 启动后，可能会发送两种消息：
-      // 1. SendPort：这是成功的握手信号。
-      // 2. Error：这是 Isolate 启动过程中发生的未捕获异常。
       if (message is SendPort) {
-        if (!completer.isCompleted) {
-          completer.complete(message);
-        }
-      } else {
-        // 如果收到的不是SendPort，说明发生了错误或意外退出。
-        if (!completer.isCompleted) {
-          completer.completeError(
-            StateError("JsonParserWorker Isolate sent an unexpected message during handshake: $message"),
-          );
-        }
+        if (!completer.isCompleted) completer.complete(message);
+      } else if (message == 'pong') {
+        _lastPongTime = DateTime.now();
+        if (kDebugMode) print("💓 Received pong from worker.");
+      } else if (!completer.isCompleted) {
+        completer.completeError(StateError("Unexpected handshake message: $message"));
       }
     });
 
+    // 监听退出与错误信号
+    _monitorPort!.listen((event) {
+      if (kDebugMode) print("⚠️ Worker isolate exited or crashed: $event");
+      _handleWorkerCrash();
+    });
+
     try {
-      // 启动 Isolate，并将 mainPort 的发送端传给它。
-      // 关键：我们将 onError 端口也指向了 mainPort，这样 Isolate 内部的
-      // 任何未捕获异常都会通过 mainPort 发送回来，并被我们的 listener 捕获。
       _isolate = await Isolate.spawn(
-        parserIsolateEntry,
+        parserIsolateEntryWithHeartbeat,
         mainPort.sendPort,
-        onError: mainPort.sendPort,
-        onExit: mainPort.sendPort, // 意外退出也会发送信号
+        onError: _monitorPort!.sendPort,
+        onExit: _monitorPort!.sendPort,
       );
 
-      // 等待 Completer 完成，同时设置超时。
       _workerSendPort = await completer.future.timeout(timeout);
-      
-      if (kDebugMode) print("✅ JsonParserWorker successfully initialized.");
-
+      _lastStatus = WorkerStatus.healthy;
+      if (kDebugMode) print("✅ JsonParserWorker initialized successfully.");
     } catch (e, s) {
       if (kDebugMode) {
-        print("❌ JsonParserWorker Failed to initialize JsonParserWorker: $e");
+        print("❌ Failed to initialize JsonParserWorker: $e");
         print(s);
       }
-      // 初始化失败后，进行彻底的清理
       dispose();
-      // 将原始错误重新抛出，以便上层调用者（如main函数）能够捕获并处理
       rethrow;
     } finally {
-      // 无论成功与否，关闭主端口，因为它只用于一次性的握手
       mainPort.close();
+    }
+  }
+
+  /// 定期心跳检测
+  void _startHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _lastPongTime = DateTime.now();
+
+    _heartbeatTimer = Timer.periodic(_heartbeatInterval, (_) async {
+      if (!isInitialized) return;
+
+      final pingPort = ReceivePort();
+      _workerSendPort?.send(PingTask(pingPort.sendPort));
+
+      try {
+        await pingPort.first.timeout(_heartbeatTimeout);
+        _lastPongTime = DateTime.now();
+      } catch (_) {
+        final diff = DateTime.now().difference(_lastPongTime ?? DateTime.now());
+        if (diff > _heartbeatTimeout) {
+          if (kDebugMode) {
+            print("💀 Worker did not respond to heartbeat ping in ${_heartbeatTimeout.inSeconds}s. Restarting...");
+          }
+          _handleWorkerCrash();
+        }
+      } finally {
+        pingPort.close();
+      }
+    });
+
+    if (kDebugMode) print("❤️ Heartbeat started (every ${_heartbeatInterval.inSeconds}s).");
+  }
+
+  /// 当Worker崩溃或退出时的处理逻辑
+  Future<void> _handleWorkerCrash() async {
+    if (!_autoRecoveryEnabled) {
+      if (kDebugMode) print("🛑 Auto recovery disabled, worker will not restart.");
+      return;
+    }
+
+    // 防止重复触发
+    if (_workerSendPort == null && _isolate == null) return;
+
+    _workerSendPort = null;
+    _isolate = null;
+    _heartbeatTimer?.cancel();
+    _lastStatus = WorkerStatus.restarting;
+
+    if (_restartAttempts >= _maxRestartAttempts) {
+      if (kDebugMode) print("🚫 Max restart attempts reached. Giving up.");
+      _lastStatus = WorkerStatus.stopped;
+      return;
+    }
+
+    _restartAttempts++;
+    final delay = _restartDelay * _restartAttempts;
+    if (kDebugMode) print("🔁 Attempting to restart worker... (attempt $_restartAttempts)");
+
+    await Future.delayed(delay);
+    try {
+      await _startWorker(timeout: const Duration(seconds: 5));
+      _restartAttempts = 0;
+      _startHeartbeat();
+      if (kDebugMode) print("✅ Worker successfully restarted.");
+    } catch (e) {
+      if (kDebugMode) print("❌ Restart failed: $e");
+      _lastStatus = WorkerStatus.stopped;
     }
   }
 
@@ -92,11 +242,38 @@ class JsonParserWorker {
     required Map<String, dynamic> schema,
     required String modelName,
   }) async {
-    if (!isInitialized) {
-      throw StateError(
-          'JsonParserWorker is not initialized. Please call initialize() during app startup.');
+    final currentHealth = health;
+
+    // 如果 Worker 不可用或状态异常，走主线程兜底逻辑
+    final shouldFallback = !isInitialized ||
+        currentHealth.status == WorkerStatus.stopped ||
+        currentHealth.status == WorkerStatus.restarting ||
+        currentHealth.status == WorkerStatus.unresponsive;
+
+    if (shouldFallback) {
+      if (kDebugMode) {
+        print("⚠️ Worker unavailable (${currentHealth.status}), using main isolate fallback.");
+      }
+
+      try {
+        // 直接在主线程执行相同逻辑
+        final sanitizer = JsonSanitizer.createInstanceForIsolate(
+          schema: schema,
+          modelName: modelName,
+        );
+        return sanitizer.processMap(data);
+      } catch (e, s) {
+        if (kDebugMode) {
+          print("❌ Fallback sanitize failed: $e");
+          print(s);
+        }
+        rethrow; // 让上层感知失败
+      }
     }
-    
+
+    // ==============================
+    // ✅ Worker Isolate 正常逻辑
+    // ==============================
     final replyPort = ReceivePort();
     final task = ParseTask(
       replyPort: replyPort.sendPort,
@@ -105,23 +282,40 @@ class JsonParserWorker {
       modelName: modelName,
     );
 
-    _workerSendPort!.send(task);
+    try {
+      _workerSendPort!.send(task);
+      final result = await replyPort.first as ParseResult;
+      replyPort.close();
 
-    final result = await replyPort.first as ParseResult;
-    replyPort.close(); // 每个任务使用一次性的回传端口
-
-    if (result.isSuccess) {
-      return result.sanitizedJson;
-    } else {
-      Error.throwWithStackTrace(result.error, result.stackTrace!);
+      if (result.isSuccess) {
+        return result.sanitizedJson;
+      } else {
+        Error.throwWithStackTrace(result.error, result.stackTrace!);
+      }
+    } catch (e, _) {
+      replyPort.close();
+      if (kDebugMode) {
+        print("❌ Worker sanitize failed, fallback to main isolate: $e");
+      }
+      // 如果 Worker 异常，也执行兜底
+      final sanitizer = JsonSanitizer.createInstanceForIsolate(
+        schema: schema,
+        modelName: modelName,
+      );
+      return sanitizer.processMap(data);
     }
   }
 
-  /// 销毁Worker Isolate，在应用退出时调用。
+  /// 销毁Worker Isolate。
   void dispose() {
     _isolate?.kill(priority: Isolate.immediate);
     _isolate = null;
     _workerSendPort = null;
+    _monitorPort?.close();
+    _monitorPort = null;
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+    _lastStatus = WorkerStatus.stopped;
     if (kDebugMode) print("🗑️ JsonParserWorker disposed.");
   }
 }

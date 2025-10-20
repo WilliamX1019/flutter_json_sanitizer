@@ -197,7 +197,7 @@ class JsonSanitizer {
     // 只将【清洗和解析】这个纯计算任务和纯数据发送到后台 Isolate。
     try {
       final sanitizedJson = await JsonParserWorker.instance
-          .sanitizeJson(data: data, schema: schema, modelName: modelName);
+          .sanitizeJson(data: data, schema: schema, modelName: modelName,);
       if (sanitizedJson != null) {
         return fromJson(sanitizedJson);
       }

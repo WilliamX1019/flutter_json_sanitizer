@@ -30,12 +30,31 @@ import 'package:flutter_json_sanitizer/src/worker_protocol.dart';
 // 保证顺序: 消息队列保证了任务是按照它们被send的顺序来处理的。
 // 无需锁 (No Locks Needed): 您不需要使用Mutex、Semaphore或任何其他传统的并发同步机制。Dart的Isolate模型从根本上消除了这类复杂性。
 
+/// 自定义Ping任务，仅用于心跳检测。
+class PingTask {
+  final SendPort replyPort;
+  PingTask(this.replyPort);
+}
 
 /// 长期驻留的 Isolate 的入口点。
-Future<void> parserIsolateEntry(SendPort mainPort) async {
-  final workerPort = ReceivePort();
-  mainPort.send(workerPort.sendPort);
+/// Worker Isolate的入口函数（带心跳响应）
+Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
+  final workerPort = ReceivePort();     // 普通任务端口
+  final heartbeatPort = ReceivePort();  // 心跳端口
 
+  mainPort.send({
+    'worker': workerPort.sendPort,
+    'heartbeat': heartbeatPort.sendPort,
+  });
+
+  // 心跳监听（独立）
+  heartbeatPort.listen((message) {
+    if (message is PingTask) {
+      message.replyPort.send('pong');
+    }
+  });
+
+  // 主任务循环
   await for (final message in workerPort) {
     if (message is ParseTask) {
       try {

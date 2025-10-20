@@ -12,7 +12,7 @@ void main() async {
   // --- 2. 在应用启动时，初始化Worker ---
   try {
     print('初始化Worker... ${DateTime.now().millisecondsSinceEpoch}');
-    await JsonParserWorker.instance.initialize();
+    await JsonParserWorker.instance.initialize(timeout: Duration(seconds: 1));
     print('Worker初始化完成... ${DateTime.now().millisecondsSinceEpoch}');
   } catch (e) {
     print('初始化Worker失败... $e');
@@ -164,7 +164,7 @@ class _MyHomePageState extends State<MyHomePage> {
   ///多层嵌套数据的净化
   void _sanitizeNestedJson() async {
     print('ProductModelSchema = ${$ProductModelSchema}');
-    final profile = await JsonSanitizer.parseAsync<ProductModel>(
+    final model = await JsonSanitizer.parseAsync<ProductModel>(
       data: productModelJson,
       schema: $ProductModelSchema,
       fromJson: ProductModel.fromJson,
@@ -173,7 +173,7 @@ class _MyHomePageState extends State<MyHomePage> {
         print('异步 发现问题: $issues 在模型 $modelName 中');
       },
     );
-    print('异步 解析后的模型: ${jsonEncode(profile)}');
+    print('ProductModel : ${model?.id}');
   }
 
   @override
