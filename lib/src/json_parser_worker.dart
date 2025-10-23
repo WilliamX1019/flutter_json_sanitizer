@@ -5,6 +5,8 @@ import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
 import 'package:flutter_json_sanitizer/src/parser_isolate_entry.dart';
 import 'package:flutter_json_sanitizer/src/worker_protocol.dart';
 
+import 'model_registry.dart';
+
 /// 一个管理长期驻留的JSON解析Worker Isolate的单例服务。
 /// 支持自动恢复机制，当后台Isolate崩溃或退出时自动重启。
 /// 1.	检测 Isolate 异常退出或错误（通过 onError / onExit 信号）
@@ -236,7 +238,7 @@ class JsonParserWorker {
     }
   }
 
-  /// 派发一个清洗任务到Worker Isolate。
+  /// 派发一个清洗任务到Worker Isolate。返回值是 Map
   Future<Map<String, dynamic>?> sanitizeJson({
     required Map<String, dynamic> data,
     required Map<String, dynamic> schema,
@@ -332,7 +334,8 @@ class JsonParserWorker {
           modelName: modelName,
         );
         final sanitizedJson = sanitizer.processMap(data);
-        return fromJson(sanitizedJson);
+        // 主线程兜底创建模型
+        return ModelRegistry.create(modelName, sanitizedJson) as T?;
       } catch (e, s) {
         if (kDebugMode) {
           print("❌ Fallback parse failed: $e");
@@ -360,8 +363,8 @@ class JsonParserWorker {
 
       if (result.isSuccess) {
         // Worker返回清洗后的JSON，在主线程执行模型转换
-        final sanitizedJson = result.sanitizedJson!;
-        return fromJson(sanitizedJson);
+        final modelInstance = result.modelInstance!;
+        return modelInstance as T?;
       } else {
         Error.throwWithStackTrace(result.error, result.stackTrace!);
       }
@@ -376,7 +379,7 @@ class JsonParserWorker {
         modelName: modelName,
       );
       final sanitizedJson = sanitizer.processMap(data);
-      return fromJson(sanitizedJson);
+      return ModelRegistry.create(modelName, sanitizedJson) as T?;
     }
   }
 

@@ -1,6 +1,8 @@
 import 'dart:isolate';
 import 'package:flutter_json_sanitizer/src/json_sanitizer.dart';
 import 'package:flutter_json_sanitizer/src/worker_protocol.dart';
+
+import 'model_registry.dart';
 // 流程图
 // 主 Isolate          |         Worker Isolate 的“信箱” (FIFO 队列)          |       Worker Isolate 的执行逻辑
 // --------------------|-------------------------------------------------------|-------------------------------------------
@@ -57,25 +59,36 @@ Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
   // 主任务循环
   await for (final message in workerPort) {
     if (message is ParseTask) {
+      //只负责JSON清洗，不负责模型创建
       try {
         final sanitizer = JsonSanitizer.createInstanceForIsolate(
           schema: message.schema,
           modelName: message.modelName,
         );
         final sanitizedJson = sanitizer.processMap(message.data);
-        message.replyPort.send(ParseResult.success(sanitizedJson));
+        message.replyPort.send(ParseResult.success(null, sanitizedJson));
       } catch (e, s) {
         message.replyPort.send(ParseResult.failure(e, s));
       }
     } else if (message is ParseAndModelTask) {
+      // 负责JSON清洗和模型创建
       try {
         final sanitizer = JsonSanitizer.createInstanceForIsolate(
           schema: message.schema,
           modelName: message.modelName,
         );
         final sanitizedJson = sanitizer.processMap(message.data);
-        // 这里只能返回清洗后的JSON，让主线程再转模型
-        message.replyPort.send(ParseResult.success(sanitizedJson));
+
+        // 动态创建模型实例
+        final model = ModelRegistry.create(message.modelName, sanitizedJson);
+
+        if (model != null) {
+          // 返回模型实例
+          message.replyPort.send(ParseResult.success(model, sanitizedJson));
+        } else {
+          message.replyPort.send(ParseResult.failure(
+              Exception("Model creation failed for ${message.modelName}"),null));
+        }
       } catch (e, s) {
         message.replyPort.send(ParseResult.failure(e, s));
       }

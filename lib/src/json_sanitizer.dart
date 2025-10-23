@@ -188,6 +188,10 @@ class JsonSanitizer {
   }) async {
     ///! 完成模型注册，确保在后台 Isolate 中可用。
     // ModelRegistry.register<T>(modelName, (json) => fromJson(json));
+      // 动态注册模型（确保只注册一次）
+  if (!ModelRegistry.isRegistered(modelName)) {
+    ModelRegistry.register<T>(modelName, (json) => fromJson(json));
+  }
 
     final effectiveCallback = onIssuesFound ?? globalDataIssueCallback;
     // 验证数据是否符合预期的Schema
@@ -201,12 +205,16 @@ class JsonSanitizer {
     // 只将【清洗和解析】这个纯计算任务和纯数据发送到后台 Isolate。
     try {
       //现在是纯数据清洗，解析在主 Isolate 中进行。
-      final sanitizedJson = await JsonParserWorker.instance
-          .sanitizeJson(data: data, schema: schema, modelName: modelName,);
-      if (sanitizedJson != null) {
-        return fromJson(sanitizedJson);
-      }
-      return null;
+      final sanitizedJson = await JsonParserWorker.instance.parseAndSanitize<T>(
+        data: data,
+        schema: schema,
+        modelName: modelName,
+        fromJson: (json) => ModelRegistry.create(modelName, json),
+      );
+      // if (sanitizedJson != null) {
+      //   return fromJson(sanitizedJson);
+      // }
+      return sanitizedJson;
     } catch (e, stackTrace) {
       // 捕获后台的纯解析异常，并在【主 Isolate】中上报。
       _reportError(
