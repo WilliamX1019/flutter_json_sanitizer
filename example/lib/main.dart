@@ -1,11 +1,13 @@
 import 'dart:convert';
 
+import 'package:example/models/%E5%88%97%E8%A1%A8%E6%B5%8B%E8%AF%95/product_list_model.dart';
 import 'package:example/models/%E5%A4%9A%E5%B1%82%E5%B5%8C%E5%A5%97%E6%B5%8B%E8%AF%95/product_model.dart';
 import 'package:example/models/%E5%A4%9A%E5%B1%82%E5%B5%8C%E5%A5%97%E6%B5%8B%E8%AF%95/product_model_json.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
 
 import 'models/user_profile.dart';
+import 'models/列表测试/product_list_json.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -175,6 +177,19 @@ class _MyHomePageState extends State<MyHomePage> {
     );
     print('ProductModel : ${model?.id}');
   }
+  void _sanitizeListNestedJson() async {
+    print('ProductListModelSchema = ${$ProductListModelSchema}');
+    final model = await JsonSanitizer.parseAsync<ProductListModel>(
+      data: productListModelJson,
+      schema: $ProductListModelSchema,
+      fromJson: ProductListModel.fromJson,
+      modelName: 'ProductListModel',
+      onIssuesFound: ({required issues, required modelName}) {
+        print('异步 发现问题: $issues 在模型 $modelName 中');
+      },
+    );
+    print('ProductModel : ${model?.list?.length}');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -198,6 +213,14 @@ class _MyHomePageState extends State<MyHomePage> {
                 _sanitizeNestedJson();
               },
               child: const Text('净化多层嵌套数据'),
+            ),
+            SizedBox(height: 30,),
+
+            ElevatedButton(
+              onPressed: () {
+                _sanitizeListNestedJson();
+              },
+              child: const Text('净化列表多层嵌套数据'),
             ),
           ],
         ),

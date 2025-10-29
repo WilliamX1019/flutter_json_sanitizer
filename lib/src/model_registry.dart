@@ -20,12 +20,13 @@ class ModelRegistry {
     }
     if (_registry.containsKey(modelName)) {
       // 可重复注册时覆盖旧的构造函数
-      if(kDebugMode){
-        print('⚠️ ModelRegistry: overriding existing registration for "$modelName"');
+      if (kDebugMode) {
+        print(
+            '⚠️ ModelRegistry: overriding existing registration for "$modelName"');
       }
     }
     _registry[modelName] = factory;
-    if(kDebugMode){
+    if (kDebugMode) {
       print('✅ ModelRegistry: registered model "$modelName"');
     }
   }
@@ -36,7 +37,7 @@ class ModelRegistry {
   static T? create<T>(String modelName, Map<String, dynamic> json) {
     final factory = _registry[modelName];
     if (factory == null) {
-      if(kDebugMode){
+      if (kDebugMode) {
         print('❌ ModelRegistry: no factory found for "$modelName"');
       }
       return null;
@@ -46,7 +47,7 @@ class ModelRegistry {
       final result = factory(json);
       return result as T;
     } catch (e, s) {
-      if(kDebugMode){
+      if (kDebugMode) {
         print('❌ ModelRegistry: failed to create "$modelName" instance: $e');
         print(s);
       }
@@ -55,7 +56,22 @@ class ModelRegistry {
   }
 
   /// 检查某个模型是否已注册。
-  static bool isRegistered(String modelName) => _registry.containsKey(modelName);
+  static bool isRegistered(String modelName) =>
+      _registry.containsKey(modelName);
+
+  /// 移除某个模型的注册
+  static void unregister(String modelName) {
+    if (_registry.containsKey(modelName)) {
+      _registry.remove(modelName);
+      if (kDebugMode) {
+        print('🧹 ModelRegistry: unregistered model "$modelName"');
+      }
+    } else {
+      if (kDebugMode) {
+        print('⚠️ ModelRegistry: model "$modelName" is not registered');
+      }
+    }
+  }
 
   /// 返回已注册模型名称列表。
   static List<String> get registeredModels => List.unmodifiable(_registry.keys);
@@ -63,7 +79,7 @@ class ModelRegistry {
   /// 清除所有注册（仅调试或测试场景使用）
   static void clear() {
     _registry.clear();
-    if(kDebugMode){
+    if (kDebugMode) {
       print('🧹 ModelRegistry: cleared all registrations');
     }
   }

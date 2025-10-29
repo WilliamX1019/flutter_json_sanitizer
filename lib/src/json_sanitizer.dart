@@ -51,9 +51,10 @@ class JsonSanitizer {
   factory JsonSanitizer.createInstanceForIsolate({
     required Map<String, dynamic> schema,
     required String modelName,
+    DataIssueCallback? onIssuesFound,
   }) {
     return JsonSanitizer._(
-        schema: schema, modelName: modelName, onIssuesFound: null);
+        schema: schema, modelName: modelName, onIssuesFound: onIssuesFound);
   }
 
   /// 🧩 [主Isolate专用] - 对原始JSON数据进行验证和上报。
@@ -135,47 +136,47 @@ class JsonSanitizer {
   /// 如果数据从根本上无效（例如，不是一个Map）或在解析过程中发生异常，则返回`null`。
   /// 否则，返回成功解析后的模型实例。
   /// 🧩 同步版 - 适用于小中型 JSON
-  static T? parse<T>({
-    required dynamic data,
-    required Map<String, dynamic> schema,
-    required T Function(Map<String, dynamic>) fromJson,
-    required String modelName,
-    DataIssueCallback? onIssuesFound, //局部回调
-    List<String>? monitoredKeys,
-  }) {
-    // 优先使用局部传入的回调。如果局部回调为null，则使用全局默认回调。
-    final effectiveCallback = onIssuesFound ?? globalDataIssueCallback;
-    // 验证数据是否符合预期的Schema
-    final isValid = JsonSanitizer.validate(
-        data: data,
-        schema: schema,
-        modelName: modelName,
-        onIssuesFound: effectiveCallback,
-        monitoredKeys: monitoredKeys);
-    if (!isValid) return fromJson({});
-    //  清洗和解析
-    try {
-      // 调用内部的、私有的 _sanitize 方法来执行实际的数据清洗
-      // --- 核心改动：创建实例时传入回调和模型名 ---
-      final sanitizer = JsonSanitizer._(
-        schema: schema,
-        modelName: modelName,
-        onIssuesFound: effectiveCallback,
-      );
-      final sanitizedJson = sanitizer.processMap(data);
-      // 使用清洗后的、类型安全的数据来创建模型实例
-      return fromJson(sanitizedJson);
-    } catch (e, stackTrace) {
-      _reportError(
-        // _reportError 保持为静态方法，处理顶层异常
-        modelName: modelName,
-        exception: e,
-        stackTrace: stackTrace,
-        onIssuesFound: effectiveCallback,
-      );
-      return null;
-    }
-  }
+  // static T? parse<T>({
+  //   required dynamic data,
+  //   required Map<String, dynamic> schema,
+  //   required T Function(Map<String, dynamic>) fromJson,
+  //   required String modelName,
+  //   DataIssueCallback? onIssuesFound, //局部回调
+  //   List<String>? monitoredKeys,
+  // }) {
+  //   // 优先使用局部传入的回调。如果局部回调为null，则使用全局默认回调。
+  //   final effectiveCallback = onIssuesFound ?? globalDataIssueCallback;
+  //   // 验证数据是否符合预期的Schema
+  //   final isValid = JsonSanitizer.validate(
+  //       data: data,
+  //       schema: schema,
+  //       modelName: modelName,
+  //       onIssuesFound: effectiveCallback,
+  //       monitoredKeys: monitoredKeys);
+  //   if (!isValid) return fromJson({});
+  //   //  清洗和解析
+  //   try {
+  //     // 调用内部的、私有的 _sanitize 方法来执行实际的数据清洗
+  //     // --- 核心改动：创建实例时传入回调和模型名 ---
+  //     final sanitizer = JsonSanitizer._(
+  //       schema: schema,
+  //       modelName: modelName,
+  //       onIssuesFound: effectiveCallback,
+  //     );
+  //     final sanitizedJson = sanitizer.processMap(data);
+  //     // 使用清洗后的、类型安全的数据来创建模型实例
+  //     return fromJson(sanitizedJson);
+  //   } catch (e, stackTrace) {
+  //     _reportError(
+  //       // _reportError 保持为静态方法，处理顶层异常
+  //       modelName: modelName,
+  //       exception: e,
+  //       stackTrace: stackTrace,
+  //       onIssuesFound: effectiveCallback,
+  //     );
+  //     return null;
+  //   }
+  // }
 
   /// 🚀 异步版 - 适用于大型 JSON，自动在独立 isolate 执行
   static Future<T?> parseAsync<T>({
@@ -194,14 +195,14 @@ class JsonSanitizer {
   }
 
     final effectiveCallback = onIssuesFound ?? globalDataIssueCallback;
-    // 验证数据是否符合预期的Schema
+    // 验证最外层数据是否符合预期的Schema
     final isValid = JsonSanitizer.validate(
         data: data,
         schema: schema,
         modelName: modelName,
         onIssuesFound: effectiveCallback,
         monitoredKeys: monitoredKeys);
-    if (!isValid) return fromJson({});
+    if (!isValid) return null;
     // 只将【清洗和解析】这个纯计算任务和纯数据发送到后台 Isolate。
     try {
       //现在是纯数据清洗，解析在主 Isolate 中进行。
@@ -211,9 +212,6 @@ class JsonSanitizer {
         modelName: modelName,
         fromJson: (json) => ModelRegistry.create(modelName, json),
       );
-      // if (sanitizedJson != null) {
-      //   return fromJson(sanitizedJson);
-      // }
       return sanitizedJson;
     } catch (e, stackTrace) {
       // 捕获后台的纯解析异常，并在【主 Isolate】中上报。

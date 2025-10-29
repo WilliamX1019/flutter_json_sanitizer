@@ -237,76 +237,6 @@ class JsonParserWorker {
       _lastStatus = WorkerStatus.stopped;
     }
   }
-
-  /// 派发一个清洗任务到Worker Isolate。返回值是 Map
-  Future<Map<String, dynamic>?> sanitizeJson({
-    required Map<String, dynamic> data,
-    required Map<String, dynamic> schema,
-    required String modelName,
-  }) async {
-    final currentHealth = health;
-
-    // 如果 Worker 不可用或状态异常，走主线程兜底逻辑
-    final shouldFallback = !isInitialized ||
-        currentHealth.status == WorkerStatus.stopped ||
-        currentHealth.status == WorkerStatus.restarting ||
-        currentHealth.status == WorkerStatus.unresponsive;
-
-    if (shouldFallback) {
-      if (kDebugMode) {
-        print("⚠️ Worker unavailable (${currentHealth.status}), using main isolate fallback.");
-      }
-
-      try {
-        // 直接在主线程执行相同逻辑
-        final sanitizer = JsonSanitizer.createInstanceForIsolate(
-          schema: schema,
-          modelName: modelName,
-        );
-        return sanitizer.processMap(data);
-      } catch (e, s) {
-        if (kDebugMode) {
-          print("❌ Fallback sanitize failed: $e");
-          print(s);
-        }
-        rethrow; // 让上层感知失败
-      }
-    }
-
-    // ==============================
-    // ✅ Worker Isolate 正常逻辑
-    // ==============================
-    final replyPort = ReceivePort();
-    final task = ParseTask(
-      replyPort: replyPort.sendPort,
-      data: data,
-      schema: schema,
-      modelName: modelName,
-    );
-
-    try {
-      _workerSendPort!.send(task);
-      final result = await replyPort.first as ParseResult;
-      replyPort.close();
-
-      if (result.isSuccess) {
-        return result.sanitizedJson;
-      } else {
-        Error.throwWithStackTrace(result.error, result.stackTrace!);
-      }
-    } catch (e, _) {
-      replyPort.close();
-      if (kDebugMode) {
-        print("❌ Worker sanitize failed, fallback to main isolate: $e");
-      }
-      // 如果 Worker 异常，也执行兜底
-      final sanitizer = JsonSanitizer.createInstanceForIsolate(
-        schema: schema,
-        modelName: modelName,
-      );
-      return sanitizer.processMap(data);
-    }
-  }
   /// 后续需要优化，暂时不用
   /// 清洗并转换为模型对象。
   /// 当 Worker 不可用时，自动在主线程兜底执行。
@@ -315,6 +245,7 @@ class JsonParserWorker {
     required Map<String, dynamic> schema,
     required T Function(Map<String, dynamic> json) fromJson,
     required String modelName,
+    DataIssueCallback? onIssuesFound,
   }) async {
     final currentHealth = health;
 
@@ -332,6 +263,7 @@ class JsonParserWorker {
         final sanitizer = JsonSanitizer.createInstanceForIsolate(
           schema: schema,
           modelName: modelName,
+          onIssuesFound: onIssuesFound
         );
         final sanitizedJson = sanitizer.processMap(data);
         // 主线程兜底创建模型
@@ -377,6 +309,7 @@ class JsonParserWorker {
       final sanitizer = JsonSanitizer.createInstanceForIsolate(
         schema: schema,
         modelName: modelName,
+        onIssuesFound: onIssuesFound,
       );
       final sanitizedJson = sanitizer.processMap(data);
       return ModelRegistry.create(modelName, sanitizedJson) as T?;
