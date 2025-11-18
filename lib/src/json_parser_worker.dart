@@ -285,7 +285,6 @@ class JsonParserWorker {
       type: modelType,
       jsonBytes: JsonTransferableUtils.encode(data),
       schema: schema,
-      modelName: modelType.toString(),
       fromJson: fromJson, // 直接把 fromJson 传给 worker
     );
 
