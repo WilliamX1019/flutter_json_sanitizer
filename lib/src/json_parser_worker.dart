@@ -5,6 +5,7 @@ import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
 import 'package:flutter_json_sanitizer/src/parser_isolate_entry.dart';
 import 'package:flutter_json_sanitizer/src/worker_protocol.dart';
 
+import 'json_transferable_utils.dart';
 import 'model_registry.dart';
 
 /// 一个管理长期驻留的JSON解析Worker Isolate的单例服务。
@@ -31,7 +32,19 @@ import 'model_registry.dart';
 //                 │
 //                 ▼
 //            返回兜底结果
+/*
 
+Main Isolate                                Worker Isolate
+--------------                               -----------------------
+ParseRequest<T> ------------------------->   (ReceivePort)
+                                             ↓
+                                             Deserialize bytes
+                                             JSON Clean
+                                             Lazy register factory(Type → fromJson)
+                                             Build model<T>
+<------------ ParseResponse<T> -------------  Encode/TransferableTypedData
+
+*/
 /// Worker 状态枚举
 enum WorkerStatus { healthy, unresponsive, restarting, stopped }
 
@@ -100,7 +113,6 @@ class JsonParserWorker {
     }
 
     await _startWorker(timeout: timeout);
-    // _startHeartbeat();
   }
 
   /// 实际的Isolate启动逻辑
@@ -171,16 +183,18 @@ class JsonParserWorker {
   // 当Worker崩溃或退出时的处理逻辑
   Future<void> _handleWorkerCrash() async {
     if (!_autoRecoveryEnabled) {
-      if (kDebugMode)
+      if (kDebugMode) {
         print("🛑 Auto recovery disabled, worker will not restart.");
+      }
       return;
     }
 
     // 防止重复触发
     if (_isRestarting) {
-      if (kDebugMode)
+      if (kDebugMode) {
         print(
             "ℹ️ _handleWorkerCrash already running, ignoring duplicate call.");
+      }
       return;
     }
 
@@ -205,9 +219,10 @@ class JsonParserWorker {
       _restartAttempts++;
       final delay =
           Duration(seconds: _restartDelay.inSeconds * _restartAttempts);
-      if (kDebugMode)
+      if (kDebugMode) {
         print(
             "🔁 Attempting to restart worker... (attempt $_restartAttempts) after ${delay.inSeconds}s");
+      }
 
       await Future.delayed(delay);
 
@@ -234,21 +249,20 @@ class JsonParserWorker {
     required Map<String, dynamic> data,
     required Map<String, dynamic> schema,
     required T Function(Map<String, dynamic> json) fromJson,
-    required String modelName,
+    required Type modelType,
     DataIssueCallback? onIssuesFound,
   }) async {
-    // final currentHealth = health;
 
     final shouldFallback = !isInitialized;
 
     if (shouldFallback) {
       if (kDebugMode) {
         print(
-            "⚠️ Worker available = (${isInitialized}), parsing in main isolate.");
+            "⚠️ Worker available = ($isInitialized), parsing in main isolate.");
       }
       try {
         final sanitizer = JsonSanitizer.createInstanceForIsolate(
-            schema: schema, modelName: modelName, onIssuesFound: onIssuesFound);
+            schema: schema, modelType: modelType, onIssuesFound: onIssuesFound);
         final sanitizedJson = sanitizer.processMap(data);
         return fromJson(sanitizedJson);
         // 主线程兜底创建模型
@@ -268,9 +282,10 @@ class JsonParserWorker {
     final replyPort = ReceivePort();
     final task = ParseAndModelTask(
       replyPort: replyPort.sendPort,
-      data: data,
+      type: modelType,
+      jsonBytes: JsonTransferableUtils.encode(data),
       schema: schema,
-      modelName: modelName,
+      modelName: modelType.toString(),
       fromJson: fromJson, // 直接把 fromJson 传给 worker
     );
 
@@ -302,11 +317,11 @@ class JsonParserWorker {
         }
         final sanitizer = JsonSanitizer.createInstanceForIsolate(
           schema: schema,
-          modelName: modelName,
+          modelType: modelType,
           onIssuesFound: onIssuesFound,
         );
         final sanitizedJson = sanitizer.processMap(data);
-        return ModelRegistry.create(modelName, sanitizedJson) as T?;
+        return ModelRegistry.create(modelType, sanitizedJson);
       }
     } catch (e, _) {
       // 通信异常或其他意外 -> 兜底
@@ -319,11 +334,11 @@ class JsonParserWorker {
       // Worker异常 → 主线程兜底
       final sanitizer = JsonSanitizer.createInstanceForIsolate(
         schema: schema,
-        modelName: modelName,
+        modelType: modelType,
         onIssuesFound: onIssuesFound,
       );
       final sanitizedJson = sanitizer.processMap(data);
-      return ModelRegistry.create(modelName, sanitizedJson) as T?;
+      return ModelRegistry.create(T, sanitizedJson);
     }
   }
 

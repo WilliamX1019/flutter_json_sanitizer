@@ -1,15 +1,19 @@
 import 'dart:isolate';
 
+
 class ParseAndModelTask {
   final SendPort replyPort;
-  final Map<String, dynamic> data;
+  final Type type; // T 的 Type 对象
+  /// JSON 数据以 bytes 传输（TransferableTypedData）提高性能
+  final TransferableTypedData jsonBytes;
   final Map<String, dynamic> schema;
   final String modelName;
   final dynamic Function(Map<String, dynamic> json) fromJson;
 
   ParseAndModelTask({
     required this.replyPort,
-    required this.data,
+    required this.type,
+    required this.jsonBytes,
     required this.schema,
     required this.modelName,
     required this.fromJson,

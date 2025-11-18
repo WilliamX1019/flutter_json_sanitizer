@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:isolate';
+import 'dart:typed_data';
 import 'package:flutter_json_sanitizer/src/json_sanitizer.dart';
 import 'package:flutter_json_sanitizer/src/worker_protocol.dart';
 
@@ -39,7 +41,7 @@ Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
   final workerPort = ReceivePort(); // 普通任务端口
   // final heartbeatPort = ReceivePort(); // 心跳端口
     // ⭐ Worker 内部模型注册表：只记录本 isolate 已注册模型
-  final Set<String> _registeredModels = {};
+  final Set<Type> _registeredModels = {};
   // 主 isolate 只期望接收到一个 SendPort
   // 所以我们发送 workerPort (主Isolate用于发送实际任务)
   // 但我们同时仍然需要让主Isolate知道 heartbeatPort，所以用额外规则包装
@@ -73,25 +75,31 @@ Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
      if (message is ParseAndModelTask) {
       // 负责JSON清洗和模型创建
       try {
+        // 0 拷贝接收 bytes
+        final Uint8List rawBytes =
+            message.jsonBytes.materialize().asUint8List();
+        final Map<String, dynamic> jsonData =
+            json.decode(utf8.decode(rawBytes));
+        // 清洗数据  
         final sanitizer = JsonSanitizer.createInstanceForIsolate(
           schema: message.schema,
-          modelName: message.modelName,
+          modelType: message.type,
         );
-        final sanitizedJson = sanitizer.processMap(message.data);
+        final sanitizedJson = sanitizer.processMap(jsonData);
         // 惰性注册：只在本 Isolate 第一次使用某个 model 时执行
-        if (!_registeredModels.contains(message.modelName)) {
-          ModelRegistry.register(message.modelName, message.fromJson, isSubIsolate: true);
-          _registeredModels.add(message.modelName);
+        if (!_registeredModels.contains(message.type)) {
+          ModelRegistry.register(message.type, message.fromJson, isSubIsolate: true);
+          _registeredModels.add(message.type);
         }
         // 动态创建模型实例
-        final model = ModelRegistry.create(message.modelName, sanitizedJson,isSubIsolate: true);
+        final model = ModelRegistry.create(message.type, sanitizedJson,isSubIsolate: true);
 
         if (model != null) {
           // 返回模型实例
           message.replyPort.send(ParseResult.success(model, sanitizedJson));
         } else {
           message.replyPort.send(ParseResult.failure(
-              Exception("Model creation failed for ${message.modelName}"),null));
+              Exception("Model creation failed for ${message.type}"),null));
         }
       } catch (e, s) {
         message.replyPort.send(ParseResult.failure(e, s));

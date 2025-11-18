@@ -77,6 +77,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   String title = '开始净化脏数据';
+  bool isInitialized = false;
   //定义脏数据
   // final dirtyJson = {
   //   "user_id": "9981",
@@ -143,10 +144,10 @@ class _MyHomePageState extends State<MyHomePage> {
     JsonSanitizer.validate(
       data: dirtyJson,
       schema: $UserProfileSchema,
-      modelName: 'UserProfile',
-      onIssuesFound: ({required issues, required modelName}) {
+      modelType: UserProfile,
+      onIssuesFound: ({required issues, required modelType}) {
         print(
-            'JsonSanitizer.validate 同步 在模型 $modelName 中 发现问题: $issues dirtyJson = $dirtyJson');
+            'JsonSanitizer.validate 同步 在模型 $modelType 中 发现问题: $issues dirtyJson = $dirtyJson');
       },
     );
 
@@ -154,10 +155,10 @@ class _MyHomePageState extends State<MyHomePage> {
       data: dirtyJson,
       schema: $UserProfileSchema,
       fromJson: UserProfile.fromJson,
-      modelName: 'UserProfile',
+      modelType: UserProfile,
       monitoredKeys: ['name'], // 我们明确告诉它要监控'name'字段
-      onIssuesFound: ({required issues, required modelName}) {
-        print('异步 发现问题: $issues 在模型 $modelName 中 , dirtyJson $dirtyJson');
+      onIssuesFound: ({required issues, required modelType}) {
+        print('异步 发现问题: $issues 在模型 $modelType 中 , dirtyJson $dirtyJson');
       },
     );
     print('异步 解析后的模型: ${jsonEncode(profile)}');
@@ -170,12 +171,17 @@ class _MyHomePageState extends State<MyHomePage> {
       data: productModelJson,
       schema: $ProductModelSchema,
       fromJson: ProductModel.fromJson,
-      modelName: 'ProductModel',
-      onIssuesFound: ({required issues, required modelName}) {
-        print('异步 发现问题: $issues 在模型 $modelName 中');
+      modelType: ProductModel,
+      onIssuesFound: ({required issues, required modelType}) {
+        print('异步 发现问题: $issues 在模型 $modelType 中');
       },
     );
     print('ProductModel : ${model?.id}');
+    if(JsonParserWorker.instance.isInitialized) {
+      setState(() {
+        isInitialized = true;
+      });
+    }
   }
   void _sanitizeListNestedJson() async {
     print('ProductListModelSchema = ${$ProductListModelSchema}');
@@ -183,12 +189,18 @@ class _MyHomePageState extends State<MyHomePage> {
       data: productListModelJson,
       schema: $ProductListModelSchema,
       fromJson: ProductListModel.fromJson,
-      modelName: 'ProductListModel',
-      onIssuesFound: ({required issues, required modelName}) {
-        print('异步 发现问题: $issues 在模型 $modelName 中');
+      modelType: ProductListModel,
+      onIssuesFound: ({required issues, required modelType}) {
+        print('异步 发现问题: $issues 在模型 $modelType 中');
       },
     );
     print('ProductModel : ${model?.list?.length}');
+    if(JsonParserWorker.instance.isInitialized) {
+      setState(() {
+        isInitialized = true;
+      });
+    }
+
   }
 
   @override
@@ -222,6 +234,8 @@ class _MyHomePageState extends State<MyHomePage> {
               },
               child: const Text('净化列表多层嵌套数据'),
             ),
+
+            Text('当前Worker状态: ${JsonParserWorker.instance.isInitialized}')
           ],
         ),
       ),
