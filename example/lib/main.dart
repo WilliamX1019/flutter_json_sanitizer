@@ -14,7 +14,7 @@ void main() async {
   // --- 2. 在应用启动时，初始化Worker ---
   try {
     print('初始化Worker... ${DateTime.now().millisecondsSinceEpoch}');
-    await JsonParserWorker.instance.initialize(timeout: Duration(seconds: 5));
+    await JsonParserWorker.instance.initialize();
     print('Worker初始化完成... ${DateTime.now().millisecondsSinceEpoch}');
   } catch (e) {
     print('初始化Worker失败... $e');

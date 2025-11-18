@@ -38,41 +38,11 @@ import 'model_registry.dart';
 /// Worker Isolate的入口函数（带心跳响应）
 /// 
 Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
-  final workerPort = ReceivePort(); // 普通任务端口
-  // final heartbeatPort = ReceivePort(); // 心跳端口
-    // ⭐ Worker 内部模型注册表：只记录本 isolate 已注册模型
-  final Set<Type> _registeredModels = {};
-  // 主 isolate 只期望接收到一个 SendPort
-  // 所以我们发送 workerPort (主Isolate用于发送实际任务)
-  // 但我们同时仍然需要让主Isolate知道 heartbeatPort，所以用额外规则包装
+  final workerPort = ReceivePort(); 
   mainPort.send(workerPort.sendPort);
-
-  // 再发送 heartbeat port（第二条消息）
-  // mainPort.send(heartbeatPort.sendPort);
-
-  // == 心跳处理 ==
-  // heartbeatPort.listen((message) {
-  //   if (message is PingTask) {
-  //     message.replyPort.send("pong");
-  //   }
-  // });
-
   // 主任务循环
   await for (final message in workerPort) {
-    // if (message is ParseTask) {
-    //   //只负责JSON清洗，不负责模型创建
-    //   try {
-    //     final sanitizer = JsonSanitizer.createInstanceForIsolate(
-    //       schema: message.schema,
-    //       modelName: message.modelName,
-    //     );
-    //     final sanitizedJson = sanitizer.processMap(message.data);
-    //     message.replyPort.send(ParseResult.success(null, sanitizedJson));
-    //   } catch (e, s) {
-    //     message.replyPort.send(ParseResult.failure(e, s));
-    //   }
-    // } else
-     if (message is ParseAndModelTask) {
+    if (message is ParseAndModelTask) {
       // 负责JSON清洗和模型创建
       try {
         // 0 拷贝接收 bytes
@@ -86,11 +56,7 @@ Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
           modelType: message.type,
         );
         final sanitizedJson = sanitizer.processMap(jsonData);
-        // 惰性注册：只在本 Isolate 第一次使用某个 model 时执行
-        if (!_registeredModels.contains(message.type)) {
-          ModelRegistry.register(message.type, message.fromJson, isSubIsolate: true);
-          _registeredModels.add(message.type);
-        }
+        ModelRegistry.register(message.type, message.fromJson, isSubIsolate: true);
         // 动态创建模型实例
         final model = ModelRegistry.create(message.type, sanitizedJson,isSubIsolate: true);
 

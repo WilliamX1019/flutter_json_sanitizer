@@ -60,7 +60,7 @@ class ModelRegistry {
 
   /// 检查某个模型是否已注册。
   static bool isRegistered(Type type) =>
-      _registry.keys.contains(type);
+      _registry.containsKey(type);
 
   /// 移除某个模型的注册
   static void unregister(Type type) {
