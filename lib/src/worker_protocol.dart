@@ -1,29 +1,18 @@
 import 'dart:isolate';
 
-class ParseTask {
-  final SendPort replyPort;
-  final Map<String, dynamic> data;
-  final Map<String, dynamic> schema;
-  final String modelName;
-
-  ParseTask({
-    required this.replyPort,
-    required this.data,
-    required this.schema,
-    required this.modelName,
-  });
-}
 class ParseAndModelTask {
   final SendPort replyPort;
   final Map<String, dynamic> data;
   final Map<String, dynamic> schema;
   final String modelName;
+  final dynamic Function(Map<String, dynamic> json) fromJson;
 
   ParseAndModelTask({
     required this.replyPort,
     required this.data,
     required this.schema,
     required this.modelName,
+    required this.fromJson,
   });
 }
 

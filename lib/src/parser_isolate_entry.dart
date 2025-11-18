@@ -32,45 +32,45 @@ import 'model_registry.dart';
 // 保证顺序: 消息队列保证了任务是按照它们被send的顺序来处理的。
 // 无需锁 (No Locks Needed): 您不需要使用Mutex、Semaphore或任何其他传统的并发同步机制。Dart的Isolate模型从根本上消除了这类复杂性。
 
-/// 自定义Ping任务，仅用于心跳检测。
-class PingTask {
-  final SendPort replyPort;
-  PingTask(this.replyPort);
-}
-
 /// 长期驻留的 Isolate 的入口点。
 /// Worker Isolate的入口函数（带心跳响应）
+/// 
 Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
   final workerPort = ReceivePort(); // 普通任务端口
-  final heartbeatPort = ReceivePort(); // 心跳端口
+  // final heartbeatPort = ReceivePort(); // 心跳端口
+    // ⭐ Worker 内部模型注册表：只记录本 isolate 已注册模型
+  final Set<String> _registeredModels = {};
+  // 主 isolate 只期望接收到一个 SendPort
+  // 所以我们发送 workerPort (主Isolate用于发送实际任务)
+  // 但我们同时仍然需要让主Isolate知道 heartbeatPort，所以用额外规则包装
+  mainPort.send(workerPort.sendPort);
 
-  mainPort.send({
-    'worker': workerPort.sendPort,
-    'heartbeat': heartbeatPort.sendPort,
-  });
+  // 再发送 heartbeat port（第二条消息）
+  // mainPort.send(heartbeatPort.sendPort);
 
-  // 心跳监听（独立）
-  heartbeatPort.listen((message) {
-    if (message is PingTask) {
-      message.replyPort.send('pong');
-    }
-  });
+  // == 心跳处理 ==
+  // heartbeatPort.listen((message) {
+  //   if (message is PingTask) {
+  //     message.replyPort.send("pong");
+  //   }
+  // });
 
   // 主任务循环
   await for (final message in workerPort) {
-    if (message is ParseTask) {
-      //只负责JSON清洗，不负责模型创建
-      try {
-        final sanitizer = JsonSanitizer.createInstanceForIsolate(
-          schema: message.schema,
-          modelName: message.modelName,
-        );
-        final sanitizedJson = sanitizer.processMap(message.data);
-        message.replyPort.send(ParseResult.success(null, sanitizedJson));
-      } catch (e, s) {
-        message.replyPort.send(ParseResult.failure(e, s));
-      }
-    } else if (message is ParseAndModelTask) {
+    // if (message is ParseTask) {
+    //   //只负责JSON清洗，不负责模型创建
+    //   try {
+    //     final sanitizer = JsonSanitizer.createInstanceForIsolate(
+    //       schema: message.schema,
+    //       modelName: message.modelName,
+    //     );
+    //     final sanitizedJson = sanitizer.processMap(message.data);
+    //     message.replyPort.send(ParseResult.success(null, sanitizedJson));
+    //   } catch (e, s) {
+    //     message.replyPort.send(ParseResult.failure(e, s));
+    //   }
+    // } else
+     if (message is ParseAndModelTask) {
       // 负责JSON清洗和模型创建
       try {
         final sanitizer = JsonSanitizer.createInstanceForIsolate(
@@ -78,9 +78,13 @@ Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
           modelName: message.modelName,
         );
         final sanitizedJson = sanitizer.processMap(message.data);
-
+        // 惰性注册：只在本 Isolate 第一次使用某个 model 时执行
+        if (!_registeredModels.contains(message.modelName)) {
+          ModelRegistry.register(message.modelName, message.fromJson, isSubIsolate: true);
+          _registeredModels.add(message.modelName);
+        }
         // 动态创建模型实例
-        final model = ModelRegistry.create(message.modelName, sanitizedJson);
+        final model = ModelRegistry.create(message.modelName, sanitizedJson,isSubIsolate: true);
 
         if (model != null) {
           // 返回模型实例

@@ -14,41 +14,46 @@ class ModelRegistry {
   /// ```dart
   /// ModelRegistry.register<User>('User', (json) => User.fromJson(json));
   /// ```
-  static void register<T>(String modelName, ModelFactory<T> factory) {
+  static void register<T>(String modelName, ModelFactory<T> factory,
+      {bool isSubIsolate = false}) {
     if (modelName.isEmpty) {
-      throw ArgumentError('modelName cannot be empty');
+      throw ArgumentError('modelName cannot be empty, isSubIsolate: $isSubIsolate');
     }
     if (_registry.containsKey(modelName)) {
       // 可重复注册时覆盖旧的构造函数
       if (kDebugMode) {
         print(
-            '⚠️ ModelRegistry: overriding existing registration for "$modelName"');
+            '⚠️ ModelRegistry: overriding existing registration for "$modelName", isSubIsolate: $isSubIsolate');
       }
     }
     _registry[modelName] = factory;
     if (kDebugMode) {
-      print('✅ ModelRegistry: registered model "$modelName"');
+      print('✅ ModelRegistry: registered model "$modelName", isSubIsolate: $isSubIsolate');
     }
   }
 
   /// 根据模型名称创建实例。
   ///
   /// 若未找到对应构造函数，返回 `null`。
-  static T? create<T>(String modelName, Map<String, dynamic> json) {
+  static T? create<T>(String modelName, Map<String, dynamic> json,
+      {bool isSubIsolate = false}) {
     final factory = _registry[modelName];
     if (factory == null) {
       if (kDebugMode) {
-        print('❌ ModelRegistry: no factory found for "$modelName"');
+        print('❌ ModelRegistry: no factory found for "$modelName" , isSubIsolate: $isSubIsolate');
       }
       return null;
     }
 
     try {
       final result = factory(json);
+      if (kDebugMode) {
+        print( '✅ ModelRegistry: successfully created "$modelName" instance from JSON, isSubIsolate: $isSubIsolate');
+      }
       return result as T;
     } catch (e, s) {
       if (kDebugMode) {
-        print('❌ ModelRegistry: failed to create "$modelName" instance: $e');
+        print('❌ ModelRegistry: failed to create "$modelName" instance: $e, isSubIsolate: $isSubIsolate');
         print(s);
       }
       return null;
@@ -57,7 +62,7 @@ class ModelRegistry {
 
   /// 检查某个模型是否已注册。
   static bool isRegistered(String modelName) =>
-      _registry.containsKey(modelName);
+      _registry.keys.contains(modelName);
 
   /// 移除某个模型的注册
   static void unregister(String modelName) {

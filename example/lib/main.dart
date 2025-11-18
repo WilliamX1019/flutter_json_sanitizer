@@ -14,14 +14,14 @@ void main() async {
   // --- 2. 在应用启动时，初始化Worker ---
   try {
     print('初始化Worker... ${DateTime.now().millisecondsSinceEpoch}');
-    await JsonParserWorker.instance.initialize(timeout: Duration(seconds: 1));
+    await JsonParserWorker.instance.initialize(timeout: Duration(seconds: 5));
     print('Worker初始化完成... ${DateTime.now().millisecondsSinceEpoch}');
   } catch (e) {
     print('初始化Worker失败... $e');
     print(
         "FATAL: JsonParserWorker could not be initialized. App functionality will be degraded.");
   }
-
+  print('JsonParserWorker health... ${JsonParserWorker.instance.isInitialized}');
   runApp(const MyApp());
 }
 

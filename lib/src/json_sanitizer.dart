@@ -188,11 +188,7 @@ class JsonSanitizer {
     List<String>? monitoredKeys,
   }) async {
     ///! 完成模型注册，确保在后台 Isolate 中可用。
-    // ModelRegistry.register<T>(modelName, (json) => fromJson(json));
-      // 动态注册模型（确保只注册一次）
-  if (!ModelRegistry.isRegistered(modelName)) {
-    ModelRegistry.register<T>(modelName, (json) => fromJson(json));
-  }
+
 
     final effectiveCallback = onIssuesFound ?? globalDataIssueCallback;
     // 验证最外层数据是否符合预期的Schema
@@ -210,7 +206,7 @@ class JsonSanitizer {
         data: data,
         schema: schema,
         modelName: modelName,
-        fromJson: (json) => ModelRegistry.create(modelName, json),
+        fromJson: fromJson, ///(json) => ModelRegistry.create(modelName, json),
       );
       return sanitizedJson;
     } catch (e, stackTrace) {
