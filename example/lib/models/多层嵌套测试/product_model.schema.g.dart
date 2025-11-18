@@ -14,11 +14,20 @@ const Map<String, dynamic> $ProductModelSchema = {
   'short_description': String,
   'description': String,
   'video': String,
-  'all_video': ListSchema(String),
-  'videos': ListSchema($VideoSchema),
+  'all_video': ListSchema(
+    itemType: String,
+    itemSchema: String,
+  ),
+  'videos': ListSchema(
+    itemType: Video,
+    itemSchema: $VideoSchema,
+  ),
   'small_image': String,
   'thumbnail_image': String,
-  'images': ListSchema($ImageSchema),
+  'images': ListSchema(
+    itemType: Image,
+    itemSchema: $ImageSchema,
+  ),
   'stock_data_qty': int,
   'qty_limit': int,
   'is_in_stock': int,
@@ -26,8 +35,14 @@ const Map<String, dynamic> $ProductModelSchema = {
   'goods_tags': String,
   'detail_video_is_show': int,
   'video_auto_play': int,
-  'selling_tag': ListSchema(String),
-  'selling_images': ListSchema($SellingImageSchema),
+  'selling_tag': ListSchema(
+    itemType: String,
+    itemSchema: String,
+  ),
+  'selling_images': ListSchema(
+    itemType: SellingImage,
+    itemSchema: $SellingImageSchema,
+  ),
   'review_count': int,
   'review_summary': String,
   'option_footer_text': String,
@@ -35,11 +50,17 @@ const Map<String, dynamic> $ProductModelSchema = {
   'final_price': String,
   'save_price': String,
   'discount_percentage': String,
-  'options': ListSchema($OptionSchema),
+  'options': ListSchema(
+    itemType: Option,
+    itemSchema: $OptionSchema,
+  ),
   'preview_prime_member_card_price': String,
   'has_plus': bool,
   'url_path': String,
-  'all_option_variants': ListSchema($AllOptionVariantSchema),
+  'all_option_variants': ListSchema(
+    itemType: AllOptionVariant,
+    itemSchema: $AllOptionVariantSchema,
+  ),
   'frame_image': String,
   'down_description': String,
   'top_description': String,
@@ -49,6 +70,11 @@ const Map<String, dynamic> $ProductModelSchema = {
   'show_qty_rate': int,
   'is_wishlistsed': bool,
   'is_recommend_flag': bool,
+  'reviews': $ReviewsSchema,
+  'category_ids': ListSchema(
+    itemType: int,
+    itemSchema: int,
+  ),
 };
 
 const Map<String, dynamic> $AllOptionVariantSchema = {
@@ -79,7 +105,10 @@ const Map<String, dynamic> $OptionSchema = {
   'product_id': int,
   'option_name': String,
   'is_require': int,
-  'values': ListSchema($ValueSchema),
+  'values': ListSchema(
+    itemType: Value,
+    itemSchema: $ValueSchema,
+  ),
 };
 
 const Map<String, dynamic> $ValueSchema = {
@@ -101,4 +130,10 @@ const Map<String, dynamic> $ValueSchema = {
   'sort_order_by_sync': int,
   'sort_order': int,
   'virtual_order': int,
+};
+
+const Map<String, dynamic> $ReviewsSchema = {
+  'reviews_count': int,
+  'rating_summary': int,
+  'rating_rate': String,
 };

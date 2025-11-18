@@ -127,7 +127,6 @@ class JsonSanitizer {
     DataIssueCallback? onIssuesFound,
     List<String>? monitoredKeys,
   }) async {
-
     final effectiveCallback = onIssuesFound ?? globalDataIssueCallback;
     // 验证最外层数据是否符合预期的Schema
     final isValid = JsonSanitizer.validate(
@@ -144,7 +143,9 @@ class JsonSanitizer {
         data: data,
         schema: schema,
         modelType: modelType,
-        fromJson: fromJson, ///(json) => ModelRegistry.create(modelName, json),
+        fromJson: fromJson,
+
+        ///(json) => ModelRegistry.create(modelName, json),
       );
       return sanitizedJson;
     } catch (e, stackTrace) {
@@ -178,91 +179,6 @@ class JsonSanitizer {
   }
 
   dynamic _convertValue(dynamic value, dynamic expectedSchema, String key) {
-    // --- 结构性错误修复（优化和整合后）---
-    final isExpectingMap =
-        expectedSchema is MapSchema || expectedSchema is Map<String, dynamic>;
-    if (isExpectingMap) {
-      if (value is List && value.isEmpty) {
-        // 空List -> 空Map
-        _reportStructuralError(
-            key: key, expectedType: 'Map', receivedValue: value);
-        return <String, dynamic>{};
-      }
-      if (value is String && value.trim().isEmpty) {
-        // 空String -> 空Map
-        _reportStructuralError(
-            key: key, expectedType: 'Map', receivedValue: value);
-        return <String, dynamic>{};
-      }
-    }
-    if (expectedSchema is ListSchema) {
-      if (value is Map) {
-        // Map -> 空List
-        _reportStructuralError(
-            key: key, expectedType: 'List', receivedValue: value);
-        return [];
-      }
-      if (value is String) {
-        // String -> List (支持逗号分隔)
-        _reportStructuralError(
-            key: key, expectedType: 'List', receivedValue: value);
-        return value
-            .split(',')
-            .map((e) => e.trim())
-            .where((e) => e.isNotEmpty)
-            .toList();
-      }
-    }
-
-    // 场景: 处理 List
-    if (expectedSchema is ListSchema) {
-      if (value is List) {
-        return value
-            .map((item) => _convertValue(item, expectedSchema.itemSchema, key))
-            .toList();
-      }
-      _reportStructuralError(
-        key: key,
-        expectedType: 'List',
-        receivedValue: value,
-      );
-      return []; // 返回安全的空List
-    }
-
-    // 场景: 处理 Map
-    if (expectedSchema is MapSchema) {
-      if (value is Map) {
-        return value.map((k, v) => MapEntry(
-            k, _convertValue(v, expectedSchema.valueSchema, '$key.$k')));
-      }
-      _reportStructuralError(
-        key: key,
-        expectedType: 'Map<String, dynamic>',
-        receivedValue: value,
-      );
-      return {}; // 返回安全的空Map
-    }
-
-    // 场景: 处理嵌套的自定义模型
-    if (expectedSchema is Map<String, dynamic>) {
-      if (value is Map<String, dynamic>) {
-        // 为嵌套调用创建一个新的Sanitizer实例
-        final nestedSanitizer = JsonSanitizer._(
-          schema: expectedSchema,
-          modelType: modelType, // 使用字段名作为嵌套模型的名
-          onIssuesFound: onIssuesFound,
-        );
-        return nestedSanitizer.processMap(value);
-      }
-      // --- 关键改动：调用上报方法 ---
-      _reportStructuralError(
-        key: key,
-        expectedType: 'Map<String, dynamic>',
-        receivedValue: value,
-      );
-      return <String, dynamic>{}; // 返回安全的默认值
-    }
-
     // 场景: 处理基础类型
     if (expectedSchema is Type) {
       try {
@@ -304,6 +220,55 @@ class JsonSanitizer {
         if (expectedSchema == String) return '';
         if (expectedSchema == bool) return false;
       }
+    }
+
+    // 场景: 处理 List
+    if (expectedSchema is ListSchema) {
+      final nestedType = expectedSchema.itemType;
+
+      if (value is List) {
+        return value.map((item) {
+          // 如果列表项是一个嵌套模型
+          if (nestedType != null &&
+              item is Map<String, dynamic> &&
+              expectedSchema.itemSchema is Map<String, dynamic>) {
+            final nestedSanitizer = JsonSanitizer._(
+              schema: expectedSchema.itemSchema,
+              modelType: nestedType,
+              onIssuesFound: onIssuesFound,
+            );
+            return nestedSanitizer.processMap(item);
+          }
+
+          // 普通列表项
+          return _convertValue(item, expectedSchema.itemSchema, key);
+        }).where((e) => e != null).toList();
+      }
+
+      _reportStructuralError(
+          key: key, expectedType: 'List', receivedValue: value);
+      return [];
+    }
+
+    // 场景: Map
+    if (expectedSchema is Map<String, dynamic>) {
+      if (value is Map<String, dynamic>) {
+        // 为嵌套调用创建一个新的Sanitizer实例
+        // return processMap(value);
+        final nestedSanitizer = JsonSanitizer._(
+          schema: expectedSchema,
+          modelType: modelType, // 此处modelType没有实际意义
+          onIssuesFound: onIssuesFound,
+        );
+        return nestedSanitizer.processMap(value);
+      }
+      // --- 关键改动：调用上报方法 ---
+      _reportStructuralError(
+        key: key,
+        expectedType: 'Map<String, dynamic>',
+        receivedValue: value,
+      );
+      return <String, dynamic>{}; // 返回安全的默认值
     }
 
     // 如果没有匹配的规则，返回原值

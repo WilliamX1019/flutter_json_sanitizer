@@ -81,11 +81,42 @@ class SchemaGenerator extends GeneratorForAnnotation<GenerateSchema> {
           : typeString;
     }
 
+    // if (type.isDartCoreList) {
+    //   if ((type as InterfaceType).typeArguments.isNotEmpty) {
+    //     return 'ListSchema(${_getSchemaValueForType(type.typeArguments.first)})';
+    //   }
+    //   return 'ListSchema(dynamic)';
+    // }
+        // -------- List<T> --------
     if (type.isDartCoreList) {
-      if ((type as InterfaceType).typeArguments.isNotEmpty) {
-        return 'ListSchema(${_getSchemaValueForType(type.typeArguments.first)})';
+      final InterfaceType it = type as InterfaceType;
+
+      // 如果包含泛型
+      if (it.typeArguments.isNotEmpty) {
+        final DartType itemType = it.typeArguments.first;
+
+        // 如果 item 是模型类型（带 @GenerateSchema）
+        if (itemType.element is ClassElement &&
+            _schemaAnnotationChecker.hasAnnotationOf(itemType.element!)) {
+          final modelName = itemType.element!.name;
+
+          return '''
+ListSchema(
+  itemType: $modelName,
+  itemSchema: \$${modelName}Schema,
+)''';
+        }
+
+        // 否则 item 是基础类型或动态 schema
+        return '''
+ListSchema(
+  itemType: ${itemType.getDisplayString(withNullability: false)},
+  itemSchema: ${_getSchemaValueForType(itemType)},
+)''';
       }
-      return 'ListSchema(dynamic)';
+
+      // 无泛型
+      return 'ListSchema(itemType: dynamic, itemSchema: dynamic)';
     }
 
     if (type.isDartCoreMap) {
@@ -95,6 +126,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenerateSchema> {
       return 'MapSchema(dynamic)';
     }
 
+     // -------- 自定义模型类型 --------
     final element = type.element;
     if (element is ClassElement &&
         _schemaAnnotationChecker.hasAnnotationOf(element)) {

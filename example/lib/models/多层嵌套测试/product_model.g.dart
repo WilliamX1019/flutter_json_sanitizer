@@ -95,6 +95,16 @@ _$ProductModelImpl _$$ProductModelImplFromJson(Map<String, dynamic> json) =>
           isWishlistsed: $checkedConvert('is_wishlistsed', (v) => v as bool?),
           isRecommendFlag:
               $checkedConvert('is_recommend_flag', (v) => v as bool?),
+          reviews: $checkedConvert(
+              'reviews',
+              (v) => v == null
+                  ? null
+                  : Reviews.fromJson(v as Map<String, dynamic>)),
+          categoryIds: $checkedConvert(
+              'category_ids',
+              (v) => (v as List<dynamic>?)
+                  ?.map((e) => (e as num).toInt())
+                  .toList()),
         );
         return val;
       },
@@ -132,7 +142,8 @@ _$ProductModelImpl _$$ProductModelImplFromJson(Map<String, dynamic> json) =>
         'isSecKill': 'is_sec_kill',
         'showQtyRate': 'show_qty_rate',
         'isWishlistsed': 'is_wishlistsed',
-        'isRecommendFlag': 'is_recommend_flag'
+        'isRecommendFlag': 'is_recommend_flag',
+        'categoryIds': 'category_ids'
       },
     );
 
@@ -180,6 +191,8 @@ Map<String, dynamic> _$$ProductModelImplToJson(_$ProductModelImpl instance) =>
       'show_qty_rate': instance.showQtyRate,
       'is_wishlistsed': instance.isWishlistsed,
       'is_recommend_flag': instance.isRecommendFlag,
+      'reviews': instance.reviews,
+      'category_ids': instance.categoryIds,
     };
 
 _$AllOptionVariantImpl _$$AllOptionVariantImplFromJson(
@@ -367,4 +380,32 @@ Map<String, dynamic> _$$ValueImplToJson(_$ValueImpl instance) =>
       'sort_order_by_sync': instance.sortOrderBySync,
       'sort_order': instance.sortOrder,
       'virtual_order': instance.virtualOrder,
+    };
+
+_$ReviewsImpl _$$ReviewsImplFromJson(Map<String, dynamic> json) =>
+    $checkedCreate(
+      r'_$ReviewsImpl',
+      json,
+      ($checkedConvert) {
+        final val = _$ReviewsImpl(
+          reviewsCount:
+              $checkedConvert('reviews_count', (v) => (v as num?)?.toInt()),
+          ratingSummary:
+              $checkedConvert('rating_summary', (v) => (v as num?)?.toInt()),
+          ratingRate: $checkedConvert('rating_rate', (v) => v as String?),
+        );
+        return val;
+      },
+      fieldKeyMap: const {
+        'reviewsCount': 'reviews_count',
+        'ratingSummary': 'rating_summary',
+        'ratingRate': 'rating_rate'
+      },
+    );
+
+Map<String, dynamic> _$$ReviewsImplToJson(_$ReviewsImpl instance) =>
+    <String, dynamic>{
+      'reviews_count': instance.reviewsCount,
+      'rating_summary': instance.ratingSummary,
+      'rating_rate': instance.ratingRate,
     };

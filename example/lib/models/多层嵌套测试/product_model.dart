@@ -59,6 +59,10 @@ class ProductModel with _$ProductModel {
     @JsonKey(name: "show_qty_rate") int? showQtyRate,
     @JsonKey(name: "is_wishlistsed") bool? isWishlistsed,
     @JsonKey(name: "is_recommend_flag") bool? isRecommendFlag,
+            @JsonKey(name: "reviews")
+        Reviews? reviews,
+                @JsonKey(name: "category_ids")
+        List<int>? categoryIds,
   }) = _ProductModel;
 
   factory ProductModel.fromJson(Map<String, dynamic> json) =>
@@ -141,5 +145,21 @@ class Value with _$Value {
 
   factory Value.fromJson(Map<String, dynamic> json) => _$ValueFromJson(json);
 }
+
+@freezed
+@generateSchema
+class Reviews with _$Reviews {
+    const factory Reviews({
+        @JsonKey(name: "reviews_count")
+        int? reviewsCount,
+        @JsonKey(name: "rating_summary")
+        int? ratingSummary,
+        @JsonKey(name: "rating_rate")
+        String? ratingRate,
+    }) = _Reviews;
+
+    factory Reviews.fromJson(Map<String, dynamic> json) => _$ReviewsFromJson(json);
+}
+
 
 

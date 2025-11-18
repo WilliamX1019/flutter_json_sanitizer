@@ -10,7 +10,10 @@ const Map<String, dynamic> $TestDemoModelSchema = {
   'userId': int,
   'name': String,
   'isActive': bool,
-  'tags': ListSchema(String),
+  'tags': ListSchema(
+    itemType: String,
+    itemSchema: String,
+  ),
   'permissions': $PermissionsSchema,
   'mainProduct': $MainProductSchema,
 };

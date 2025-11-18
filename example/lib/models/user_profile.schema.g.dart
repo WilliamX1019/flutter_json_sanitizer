@@ -10,7 +10,10 @@ const Map<String, dynamic> $UserProfileSchema = {
   'user_id': int,
   'name': String,
   'is_active': bool,
-  'tags': ListSchema(String),
+  'tags': ListSchema(
+    itemType: String,
+    itemSchema: String,
+  ),
   'permissions': $PermissionsSchema,
   'mainProduct': $ProductSchema,
   'metadata': $MetadataSchema,

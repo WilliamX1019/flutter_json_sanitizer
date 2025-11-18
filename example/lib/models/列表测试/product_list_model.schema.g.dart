@@ -7,7 +7,10 @@ part of 'product_list_model.dart';
 // **************************************************************************
 
 const Map<String, dynamic> $ProductListModelSchema = {
-  'list': ListSchema($ProductModelSchema),
+  'list': ListSchema(
+    itemType: ProductModel,
+    itemSchema: $ProductModelSchema,
+  ),
   'paginate': $PaginateSchema,
 };
 

@@ -192,6 +192,14 @@ mixin _$ProductModel {
   bool? get isRecommendFlag => throw _privateConstructorUsedError;
   @JsonKey(name: "is_recommend_flag")
   set isRecommendFlag(bool? value) => throw _privateConstructorUsedError;
+  @JsonKey(name: "reviews")
+  Reviews? get reviews => throw _privateConstructorUsedError;
+  @JsonKey(name: "reviews")
+  set reviews(Reviews? value) => throw _privateConstructorUsedError;
+  @JsonKey(name: "category_ids")
+  List<int>? get categoryIds => throw _privateConstructorUsedError;
+  @JsonKey(name: "category_ids")
+  set categoryIds(List<int>? value) => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -249,7 +257,11 @@ abstract class $ProductModelCopyWith<$Res> {
       @JsonKey(name: "is_sec_kill") int? isSecKill,
       @JsonKey(name: "show_qty_rate") int? showQtyRate,
       @JsonKey(name: "is_wishlistsed") bool? isWishlistsed,
-      @JsonKey(name: "is_recommend_flag") bool? isRecommendFlag});
+      @JsonKey(name: "is_recommend_flag") bool? isRecommendFlag,
+      @JsonKey(name: "reviews") Reviews? reviews,
+      @JsonKey(name: "category_ids") List<int>? categoryIds});
+
+  $ReviewsCopyWith<$Res>? get reviews;
 }
 
 /// @nodoc
@@ -307,6 +319,8 @@ class _$ProductModelCopyWithImpl<$Res, $Val extends ProductModel>
     Object? showQtyRate = freezed,
     Object? isWishlistsed = freezed,
     Object? isRecommendFlag = freezed,
+    Object? reviews = freezed,
+    Object? categoryIds = freezed,
   }) {
     return _then(_value.copyWith(
       id: freezed == id
@@ -477,7 +491,27 @@ class _$ProductModelCopyWithImpl<$Res, $Val extends ProductModel>
           ? _value.isRecommendFlag
           : isRecommendFlag // ignore: cast_nullable_to_non_nullable
               as bool?,
+      reviews: freezed == reviews
+          ? _value.reviews
+          : reviews // ignore: cast_nullable_to_non_nullable
+              as Reviews?,
+      categoryIds: freezed == categoryIds
+          ? _value.categoryIds
+          : categoryIds // ignore: cast_nullable_to_non_nullable
+              as List<int>?,
     ) as $Val);
+  }
+
+  @override
+  @pragma('vm:prefer-inline')
+  $ReviewsCopyWith<$Res>? get reviews {
+    if (_value.reviews == null) {
+      return null;
+    }
+
+    return $ReviewsCopyWith<$Res>(_value.reviews!, (value) {
+      return _then(_value.copyWith(reviews: value) as $Val);
+    });
   }
 }
 
@@ -533,7 +567,12 @@ abstract class _$$ProductModelImplCopyWith<$Res>
       @JsonKey(name: "is_sec_kill") int? isSecKill,
       @JsonKey(name: "show_qty_rate") int? showQtyRate,
       @JsonKey(name: "is_wishlistsed") bool? isWishlistsed,
-      @JsonKey(name: "is_recommend_flag") bool? isRecommendFlag});
+      @JsonKey(name: "is_recommend_flag") bool? isRecommendFlag,
+      @JsonKey(name: "reviews") Reviews? reviews,
+      @JsonKey(name: "category_ids") List<int>? categoryIds});
+
+  @override
+  $ReviewsCopyWith<$Res>? get reviews;
 }
 
 /// @nodoc
@@ -589,6 +628,8 @@ class __$$ProductModelImplCopyWithImpl<$Res>
     Object? showQtyRate = freezed,
     Object? isWishlistsed = freezed,
     Object? isRecommendFlag = freezed,
+    Object? reviews = freezed,
+    Object? categoryIds = freezed,
   }) {
     return _then(_$ProductModelImpl(
       id: freezed == id
@@ -759,6 +800,14 @@ class __$$ProductModelImplCopyWithImpl<$Res>
           ? _value.isRecommendFlag
           : isRecommendFlag // ignore: cast_nullable_to_non_nullable
               as bool?,
+      reviews: freezed == reviews
+          ? _value.reviews
+          : reviews // ignore: cast_nullable_to_non_nullable
+              as Reviews?,
+      categoryIds: freezed == categoryIds
+          ? _value.categoryIds
+          : categoryIds // ignore: cast_nullable_to_non_nullable
+              as List<int>?,
     ));
   }
 }
@@ -809,7 +858,9 @@ class _$ProductModelImpl implements _ProductModel {
       @JsonKey(name: "is_sec_kill") this.isSecKill,
       @JsonKey(name: "show_qty_rate") this.showQtyRate,
       @JsonKey(name: "is_wishlistsed") this.isWishlistsed,
-      @JsonKey(name: "is_recommend_flag") this.isRecommendFlag});
+      @JsonKey(name: "is_recommend_flag") this.isRecommendFlag,
+      @JsonKey(name: "reviews") this.reviews,
+      @JsonKey(name: "category_ids") this.categoryIds});
 
   factory _$ProductModelImpl.fromJson(Map<String, dynamic> json) =>
       _$$ProductModelImplFromJson(json);
@@ -940,10 +991,16 @@ class _$ProductModelImpl implements _ProductModel {
   @override
   @JsonKey(name: "is_recommend_flag")
   bool? isRecommendFlag;
+  @override
+  @JsonKey(name: "reviews")
+  Reviews? reviews;
+  @override
+  @JsonKey(name: "category_ids")
+  List<int>? categoryIds;
 
   @override
   String toString() {
-    return 'ProductModel(id: $id, sku: $sku, hasOptions: $hasOptions, name: $name, shortDescription: $shortDescription, description: $description, video: $video, allVideo: $allVideo, videos: $videos, smallImage: $smallImage, thumbnailImage: $thumbnailImage, images: $images, stockDataQty: $stockDataQty, qtyLimit: $qtyLimit, isInStock: $isInStock, redeemPoints: $redeemPoints, goodsTags: $goodsTags, detailVideoIsShow: $detailVideoIsShow, videoAutoPlay: $videoAutoPlay, sellingTag: $sellingTag, sellingImages: $sellingImages, reviewCount: $reviewCount, reviewSummary: $reviewSummary, optionFooterText: $optionFooterText, originalPrice: $originalPrice, finalPrice: $finalPrice, savePrice: $savePrice, discountPercentage: $discountPercentage, options: $options, previewPrimeMemberCardPrice: $previewPrimeMemberCardPrice, hasPlus: $hasPlus, urlPath: $urlPath, allOptionVariants: $allOptionVariants, frameImage: $frameImage, downDescription: $downDescription, topDescription: $topDescription, isRedeemPoint: $isRedeemPoint, shareUrl: $shareUrl, isSecKill: $isSecKill, showQtyRate: $showQtyRate, isWishlistsed: $isWishlistsed, isRecommendFlag: $isRecommendFlag)';
+    return 'ProductModel(id: $id, sku: $sku, hasOptions: $hasOptions, name: $name, shortDescription: $shortDescription, description: $description, video: $video, allVideo: $allVideo, videos: $videos, smallImage: $smallImage, thumbnailImage: $thumbnailImage, images: $images, stockDataQty: $stockDataQty, qtyLimit: $qtyLimit, isInStock: $isInStock, redeemPoints: $redeemPoints, goodsTags: $goodsTags, detailVideoIsShow: $detailVideoIsShow, videoAutoPlay: $videoAutoPlay, sellingTag: $sellingTag, sellingImages: $sellingImages, reviewCount: $reviewCount, reviewSummary: $reviewSummary, optionFooterText: $optionFooterText, originalPrice: $originalPrice, finalPrice: $finalPrice, savePrice: $savePrice, discountPercentage: $discountPercentage, options: $options, previewPrimeMemberCardPrice: $previewPrimeMemberCardPrice, hasPlus: $hasPlus, urlPath: $urlPath, allOptionVariants: $allOptionVariants, frameImage: $frameImage, downDescription: $downDescription, topDescription: $topDescription, isRedeemPoint: $isRedeemPoint, shareUrl: $shareUrl, isSecKill: $isSecKill, showQtyRate: $showQtyRate, isWishlistsed: $isWishlistsed, isRecommendFlag: $isRecommendFlag, reviews: $reviews, categoryIds: $categoryIds)';
   }
 
   @JsonKey(ignore: true)
@@ -1005,7 +1062,9 @@ abstract class _ProductModel implements ProductModel {
           @JsonKey(name: "is_sec_kill") int? isSecKill,
           @JsonKey(name: "show_qty_rate") int? showQtyRate,
           @JsonKey(name: "is_wishlistsed") bool? isWishlistsed,
-          @JsonKey(name: "is_recommend_flag") bool? isRecommendFlag}) =
+          @JsonKey(name: "is_recommend_flag") bool? isRecommendFlag,
+          @JsonKey(name: "reviews") Reviews? reviews,
+          @JsonKey(name: "category_ids") List<int>? categoryIds}) =
       _$ProductModelImpl;
 
   factory _ProductModel.fromJson(Map<String, dynamic> json) =
@@ -1221,6 +1280,16 @@ abstract class _ProductModel implements ProductModel {
   bool? get isRecommendFlag;
   @JsonKey(name: "is_recommend_flag")
   set isRecommendFlag(bool? value);
+  @override
+  @JsonKey(name: "reviews")
+  Reviews? get reviews;
+  @JsonKey(name: "reviews")
+  set reviews(Reviews? value);
+  @override
+  @JsonKey(name: "category_ids")
+  List<int>? get categoryIds;
+  @JsonKey(name: "category_ids")
+  set categoryIds(List<int>? value);
   @override
   @JsonKey(ignore: true)
   _$$ProductModelImplCopyWith<_$ProductModelImpl> get copyWith =>
@@ -2689,5 +2758,194 @@ abstract class _Value implements Value {
   @override
   @JsonKey(ignore: true)
   _$$ValueImplCopyWith<_$ValueImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+Reviews _$ReviewsFromJson(Map<String, dynamic> json) {
+  return _Reviews.fromJson(json);
+}
+
+/// @nodoc
+mixin _$Reviews {
+  @JsonKey(name: "reviews_count")
+  int? get reviewsCount => throw _privateConstructorUsedError;
+  @JsonKey(name: "rating_summary")
+  int? get ratingSummary => throw _privateConstructorUsedError;
+  @JsonKey(name: "rating_rate")
+  String? get ratingRate => throw _privateConstructorUsedError;
+
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+  @JsonKey(ignore: true)
+  $ReviewsCopyWith<Reviews> get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $ReviewsCopyWith<$Res> {
+  factory $ReviewsCopyWith(Reviews value, $Res Function(Reviews) then) =
+      _$ReviewsCopyWithImpl<$Res, Reviews>;
+  @useResult
+  $Res call(
+      {@JsonKey(name: "reviews_count") int? reviewsCount,
+      @JsonKey(name: "rating_summary") int? ratingSummary,
+      @JsonKey(name: "rating_rate") String? ratingRate});
+}
+
+/// @nodoc
+class _$ReviewsCopyWithImpl<$Res, $Val extends Reviews>
+    implements $ReviewsCopyWith<$Res> {
+  _$ReviewsCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? reviewsCount = freezed,
+    Object? ratingSummary = freezed,
+    Object? ratingRate = freezed,
+  }) {
+    return _then(_value.copyWith(
+      reviewsCount: freezed == reviewsCount
+          ? _value.reviewsCount
+          : reviewsCount // ignore: cast_nullable_to_non_nullable
+              as int?,
+      ratingSummary: freezed == ratingSummary
+          ? _value.ratingSummary
+          : ratingSummary // ignore: cast_nullable_to_non_nullable
+              as int?,
+      ratingRate: freezed == ratingRate
+          ? _value.ratingRate
+          : ratingRate // ignore: cast_nullable_to_non_nullable
+              as String?,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$ReviewsImplCopyWith<$Res> implements $ReviewsCopyWith<$Res> {
+  factory _$$ReviewsImplCopyWith(
+          _$ReviewsImpl value, $Res Function(_$ReviewsImpl) then) =
+      __$$ReviewsImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {@JsonKey(name: "reviews_count") int? reviewsCount,
+      @JsonKey(name: "rating_summary") int? ratingSummary,
+      @JsonKey(name: "rating_rate") String? ratingRate});
+}
+
+/// @nodoc
+class __$$ReviewsImplCopyWithImpl<$Res>
+    extends _$ReviewsCopyWithImpl<$Res, _$ReviewsImpl>
+    implements _$$ReviewsImplCopyWith<$Res> {
+  __$$ReviewsImplCopyWithImpl(
+      _$ReviewsImpl _value, $Res Function(_$ReviewsImpl) _then)
+      : super(_value, _then);
+
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? reviewsCount = freezed,
+    Object? ratingSummary = freezed,
+    Object? ratingRate = freezed,
+  }) {
+    return _then(_$ReviewsImpl(
+      reviewsCount: freezed == reviewsCount
+          ? _value.reviewsCount
+          : reviewsCount // ignore: cast_nullable_to_non_nullable
+              as int?,
+      ratingSummary: freezed == ratingSummary
+          ? _value.ratingSummary
+          : ratingSummary // ignore: cast_nullable_to_non_nullable
+              as int?,
+      ratingRate: freezed == ratingRate
+          ? _value.ratingRate
+          : ratingRate // ignore: cast_nullable_to_non_nullable
+              as String?,
+    ));
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$ReviewsImpl implements _Reviews {
+  const _$ReviewsImpl(
+      {@JsonKey(name: "reviews_count") this.reviewsCount,
+      @JsonKey(name: "rating_summary") this.ratingSummary,
+      @JsonKey(name: "rating_rate") this.ratingRate});
+
+  factory _$ReviewsImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ReviewsImplFromJson(json);
+
+  @override
+  @JsonKey(name: "reviews_count")
+  final int? reviewsCount;
+  @override
+  @JsonKey(name: "rating_summary")
+  final int? ratingSummary;
+  @override
+  @JsonKey(name: "rating_rate")
+  final String? ratingRate;
+
+  @override
+  String toString() {
+    return 'Reviews(reviewsCount: $reviewsCount, ratingSummary: $ratingSummary, ratingRate: $ratingRate)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$ReviewsImpl &&
+            (identical(other.reviewsCount, reviewsCount) ||
+                other.reviewsCount == reviewsCount) &&
+            (identical(other.ratingSummary, ratingSummary) ||
+                other.ratingSummary == ratingSummary) &&
+            (identical(other.ratingRate, ratingRate) ||
+                other.ratingRate == ratingRate));
+  }
+
+  @JsonKey(ignore: true)
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, reviewsCount, ratingSummary, ratingRate);
+
+  @JsonKey(ignore: true)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$ReviewsImplCopyWith<_$ReviewsImpl> get copyWith =>
+      __$$ReviewsImplCopyWithImpl<_$ReviewsImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ReviewsImplToJson(
+      this,
+    );
+  }
+}
+
+abstract class _Reviews implements Reviews {
+  const factory _Reviews(
+      {@JsonKey(name: "reviews_count") final int? reviewsCount,
+      @JsonKey(name: "rating_summary") final int? ratingSummary,
+      @JsonKey(name: "rating_rate") final String? ratingRate}) = _$ReviewsImpl;
+
+  factory _Reviews.fromJson(Map<String, dynamic> json) = _$ReviewsImpl.fromJson;
+
+  @override
+  @JsonKey(name: "reviews_count")
+  int? get reviewsCount;
+  @override
+  @JsonKey(name: "rating_summary")
+  int? get ratingSummary;
+  @override
+  @JsonKey(name: "rating_rate")
+  String? get ratingRate;
+  @override
+  @JsonKey(ignore: true)
+  _$$ReviewsImplCopyWith<_$ReviewsImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

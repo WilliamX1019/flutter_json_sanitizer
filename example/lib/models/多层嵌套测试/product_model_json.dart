@@ -353,7 +353,8 @@ final productModelJson = {
         87,
         92,
         98,
-        1174
+        1174,
+        '123'
     ],
     "reviews": {
         "reviews_count": 1,
