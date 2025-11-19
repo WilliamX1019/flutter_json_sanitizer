@@ -185,17 +185,32 @@ class JsonSanitizer {
         if (expectedSchema == int) {
           if (value is int) return value;
           if (value is double) return value.toInt();
-          if (value is String) return int.tryParse(value) ?? 0;
+          if (value is String) {
+            // 处理 PHP 返回的数字字符串
+            final result = int.tryParse(value.replaceAll(RegExp(r'[^0-9].'), ''));
+            if (result != null) return result;
+            return 0; // 若解析失败，返回默认值
+          }
           throw 'Cannot convert to int';
         }
         if (expectedSchema == double) {
           if (value is double) return value;
           if (value is int) return value.toDouble();
-          if (value is String) return double.tryParse(value) ?? 0.0;
+          if (value is String) {
+            final result = double.tryParse(value.replaceAll(RegExp(r'[^0-9.]'), ''));
+            if (result != null) return result;
+            return 0.0;
+          }
           throw 'Cannot convert to double';
         }
         if (expectedSchema == String) {
-          if (value is String) return value;
+          if (value is String) {
+            // 处理空字符串或 "null" 字符串
+            if (value.trim().isEmpty || value.toLowerCase() == 'null') {
+              return null; // 将空字符串或 "null" 字符串转为 null
+            }
+            return value;
+          }
           return value.toString();
         }
         if (expectedSchema == bool) {
@@ -249,6 +264,18 @@ class JsonSanitizer {
           key: key, expectedType: 'List', receivedValue: value);
       return [];
     }
+
+  // --- 处理数字-key的PHP数组，转换为 List ---
+  // 这部分代码会检查 expectedSchema 是否是 ListSchema，如果是，则进行数字-key数组的转换
+  if (expectedSchema is ListSchema && value is Map<String, dynamic>) {
+    // 如果值是 Map，但包含数字索引键值对
+    if (value.keys.every((key) => int.tryParse(key) != null)) {
+      // PHP 数字-key array: 将其转换为 Dart List
+      return value.entries
+          .map((entry) => _convertValue(entry.value, expectedSchema, entry.key))
+          .toList();
+    }
+  }
 
     // 场景: Map
     if (expectedSchema is Map<String, dynamic>) {

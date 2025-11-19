@@ -298,7 +298,7 @@ class JsonParserWorker {
         if (result.isSuccess) {
           // Worker 返回了 modelInstance（已在子 isolate 创建）
           final modelInstance = result.modelInstance!;
-          return modelInstance as T?;
+          return modelInstance;
         } else {
           // Worker 返回失败：将错误抛出（保留stack）
           if (result.stackTrace != null) {
@@ -320,7 +320,7 @@ class JsonParserWorker {
           onIssuesFound: onIssuesFound,
         );
         final sanitizedJson = sanitizer.processMap(data);
-        return ModelRegistry.create(modelType, sanitizedJson);
+        return fromJson(sanitizedJson);
       }
     } catch (e, _) {
       // 通信异常或其他意外 -> 兜底
@@ -337,7 +337,7 @@ class JsonParserWorker {
         onIssuesFound: onIssuesFound,
       );
       final sanitizedJson = sanitizer.processMap(data);
-      return ModelRegistry.create(T, sanitizedJson);
+      return fromJson(sanitizedJson);
     }
   }
 
@@ -348,9 +348,6 @@ class JsonParserWorker {
     _workerSendPort = null;
     _monitorPort?.close();
     _monitorPort = null;
-    // _heartbeatTimer?.cancel();
-    // _heartbeatTimer = null;
-    // _lastStatus = WorkerStatus.stopped;
     if (kDebugMode) print("🗑️ JsonParserWorker disposed.");
   }
 }
