@@ -41,13 +41,27 @@ Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
   final workerPort = ReceivePort();
   // 当前 Worker 已注册的模型（按 Type 存储）
   final Set<Type> registeredTypes = {};
-
+  // 已经发送过的 Schema 缓存
+  final Map<Type, Map<String, dynamic>> schemaCache = {};
   mainPort.send(workerPort.sendPort);
   // 主任务循环
   await for (final message in workerPort) {
     if (message is ParseAndModelTask) {
       // 负责JSON清洗和模型创建
       try {
+        // 获取或更新 Schema
+        Map<String, dynamic>? effectiveSchema = message.schema;
+
+        if (effectiveSchema != null) {
+          // 如果消息带了 Schema，更新缓存
+          schemaCache[message.type] = effectiveSchema;
+        } else {
+          // 如果消息没带 Schema，从缓存取
+          effectiveSchema = schemaCache[message.type];
+          if (effectiveSchema == null) {
+            throw StateError("Worker: Schema missing for type ${message.type}");
+          }
+        }
         // 0 拷贝接收 bytes
         final Uint8List rawBytes =
             message.jsonBytes.materialize().asUint8List();
@@ -55,7 +69,7 @@ Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
             json.decode(utf8.decode(rawBytes));
         // 清洗数据
         final sanitizer = JsonSanitizer.createInstanceForIsolate(
-          schema: message.schema,
+          schema: effectiveSchema,
           modelType: message.type,
         );
         final sanitizedJson = sanitizer.processMap(jsonData);

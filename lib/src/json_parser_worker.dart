@@ -92,6 +92,9 @@ class JsonParserWorker {
   WorkerStatus _lastStatus = WorkerStatus.stopped;
   bool _isRestarting = false;
 
+  // 记录已发送 Schema 给 Worker 的类型
+  final Set<Type> _sentSchemas = {};
+
   /// 对外暴露的健康快照（不再包含心跳时延信息）
   JsonParserWorkerHealth get health {
     final alive = isInitialized && _isolate != null;
@@ -200,7 +203,7 @@ class JsonParserWorker {
 
     _isRestarting = true;
     _lastStatus = WorkerStatus.restarting;
-
+    _sentSchemas.clear();
     try {
       // 清理当前资源（以便 isInitialized 反映真实状态）
       _workerSendPort = null;
@@ -252,7 +255,6 @@ class JsonParserWorker {
     required Type modelType,
     DataIssueCallback? onIssuesFound,
   }) async {
-
     final shouldFallback = !isInitialized;
 
     if (shouldFallback) {
@@ -279,12 +281,13 @@ class JsonParserWorker {
     // ==============================
     // ✅ Worker 正常逻辑
     // ==============================
+    final bool schemaSent = _sentSchemas.contains(modelType);
     final replyPort = ReceivePort();
     final task = ParseAndModelTask(
       replyPort: replyPort.sendPort,
       type: modelType,
       jsonBytes: JsonTransferableUtils.encode(data),
-      schema: schema,
+      schema: schemaSent ? null : schema,
       fromJson: fromJson, // 直接把 fromJson 传给 worker
     );
 
@@ -292,7 +295,9 @@ class JsonParserWorker {
       _workerSendPort!.send(task);
       final raw = await replyPort.first;
       replyPort.close();
-
+      if (!schemaSent) {
+        _sentSchemas.add(modelType);
+      }
       if (raw is ParseResult) {
         final result = raw;
         if (result.isSuccess) {
