@@ -11,11 +11,23 @@ class JsonTransferableUtils {
 
   /// 将一个 JSON 对象（Map 或 List）编码为 TransferableTypedData。
   ///
-  /// [jsonData] 是要被编码的 Dart 对象，通常是 Map<String, dynamic> 或 List<dynamic>。
   /// 返回一个可以被发送到另一个 Isolate 的 [TransferableTypedData] 对象。
-  static TransferableTypedData encode(Object jsonData) {
+  /// [data] 可以是：
+  /// - 原始 JSON 字符串（直接编码，最高效）。
+  /// - `Map` / `List`: Dart 对象（先 jsonEncode 再编码）。
+  static TransferableTypedData encode(Object data) {
     // 1. 使用 dart:convert 将对象编码为 JSON 字符串。
-    final String jsonString = jsonEncode(jsonData);
+    String jsonString;
+    if (data is String) {
+      jsonString = data;
+    } else {
+      try {
+        jsonString = jsonEncode(data);
+      } catch (e) {
+        // 增加错误处理，防止不可序列化的对象导致 Crash
+        throw ArgumentError("Failed to encode data to JSON: $e");
+      }
+    }
 
     // 2. 将 JSON 字符串编码为 UTF-8 字节列表。
     final List<int> utf8Bytes = utf8.encode(jsonString);
