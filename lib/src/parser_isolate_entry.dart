@@ -36,9 +36,12 @@ import 'model_registry.dart';
 
 /// 长期驻留的 Isolate 的入口点。
 /// Worker Isolate的入口函数（带心跳响应）
-/// 
+///
 Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
-  final workerPort = ReceivePort(); 
+  final workerPort = ReceivePort();
+  // 当前 Worker 已注册的模型（按 Type 存储）
+  final Set<Type> registeredTypes = {};
+
   mainPort.send(workerPort.sendPort);
   // 主任务循环
   await for (final message in workerPort) {
@@ -50,22 +53,27 @@ Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
             message.jsonBytes.materialize().asUint8List();
         final Map<String, dynamic> jsonData =
             json.decode(utf8.decode(rawBytes));
-        // 清洗数据  
+        // 清洗数据
         final sanitizer = JsonSanitizer.createInstanceForIsolate(
           schema: message.schema,
           modelType: message.type,
         );
         final sanitizedJson = sanitizer.processMap(jsonData);
-        ModelRegistry.register(message.type, message.fromJson, isSubIsolate: true);
+        if (!registeredTypes.contains(message.type)) {
+          ModelRegistry.register(message.type, message.fromJson,
+              isSubIsolate: true);
+          registeredTypes.add(message.type);
+        }
         // 动态创建模型实例
-        final model = ModelRegistry.create(message.type, sanitizedJson,isSubIsolate: true);
+        final model = ModelRegistry.create(message.type, sanitizedJson,
+            isSubIsolate: true);
 
         if (model != null) {
           // 返回模型实例
           message.replyPort.send(ParseResult.success(model, sanitizedJson));
         } else {
           message.replyPort.send(ParseResult.failure(
-              Exception("Model creation failed for ${message.type}"),null));
+              Exception("Model creation failed for ${message.type}"), null));
         }
       } catch (e, s) {
         message.replyPort.send(ParseResult.failure(e, s));
