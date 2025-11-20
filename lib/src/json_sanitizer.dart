@@ -260,22 +260,39 @@ class JsonSanitizer {
         }).where((e) => e != null).toList();
       }
 
+        // --- 处理数字-key的PHP数组，转换为 List ---
+      // 这部分代码会检查 expectedSchema 是否是 ListSchema，如果是，则进行数字-key数组的转换
+      if (value is Map<String, dynamic>) {
+         // 检查是否所有 Key 都是数字
+        if (value.keys.every((key) => int.tryParse(key) != null)) {
+          // 按 Key 排序（可选，但推荐，因为 Map 无序）
+          final entries = value.entries.toList()
+            ..sort((a, b) => int.parse(a.key).compareTo(int.parse(b.key)));
+
+          return entries.map((entry) {
+            // 复用转换逻辑
+            if (nestedType != null &&
+                entry.value is Map<String, dynamic> &&
+                expectedSchema.itemSchema is Map<String, dynamic>) {
+              // ... 嵌套模型处理 ...
+              final nestedSanitizer = JsonSanitizer._(
+                schema: expectedSchema.itemSchema,
+                modelType: nestedType,
+                onIssuesFound: onIssuesFound,
+              );
+              return nestedSanitizer.processMap(entry.value);
+            }
+            return _convertValue(entry.value, expectedSchema.itemSchema, entry.key);
+          }).toList();
+        }
+      }
+
       _reportStructuralError(
           key: key, expectedType: 'List', receivedValue: value);
       return [];
     }
 
-  // --- 处理数字-key的PHP数组，转换为 List ---
-  // 这部分代码会检查 expectedSchema 是否是 ListSchema，如果是，则进行数字-key数组的转换
-  if (expectedSchema is ListSchema && value is Map<String, dynamic>) {
-    // 如果值是 Map，但包含数字索引键值对
-    if (value.keys.every((key) => int.tryParse(key) != null)) {
-      // PHP 数字-key array: 将其转换为 Dart List
-      return value.entries
-          .map((entry) => _convertValue(entry.value, expectedSchema, entry.key))
-          .toList();
-    }
-  }
+
 
     // 场景: Map
     if (expectedSchema is Map<String, dynamic>) {
@@ -289,6 +306,7 @@ class JsonSanitizer {
         );
         return nestedSanitizer.processMap(value);
       }
+      if (value is List && value.isEmpty) return <String, dynamic>{};
       // --- 关键改动：调用上报方法 ---
       _reportStructuralError(
         key: key,
