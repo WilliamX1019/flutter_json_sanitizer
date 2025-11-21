@@ -128,14 +128,19 @@ class JsonSanitizer {
     List<String>? monitoredKeys,
   }) async {
     final effectiveCallback = onIssuesFound ?? globalDataIssueCallback;
+
     // 验证最外层数据是否符合预期的Schema
-    final isValid = JsonSanitizer.validate(
-        data: data,
-        schema: schema,
-        modelType: modelType,
-        onIssuesFound: effectiveCallback,
-        monitoredKeys: monitoredKeys);
-    if (!isValid) return null;
+    // 优化：只有当数据已经在主线程是 Map 时才进行验证。
+    // 如果是 String 或 TransferableTypedData，我们跳过主线程验证，直接交给 Worker 处理。
+    if (data is Map<String, dynamic>) {
+      final isValid = JsonSanitizer.validate(
+          data: data,
+          schema: schema,
+          modelType: modelType,
+          onIssuesFound: effectiveCallback,
+          monitoredKeys: monitoredKeys);
+      if (!isValid) return null;
+    }
     // 只将【清洗和解析】这个纯计算任务和纯数据发送到后台 Isolate。
     try {
       //现在是纯数据清洗，解析在主 Isolate 中进行。
@@ -144,6 +149,7 @@ class JsonSanitizer {
         schema: schema,
         modelType: modelType,
         fromJson: fromJson,
+        monitoredKeys: monitoredKeys,
 
         ///(json) => ModelRegistry.create(modelName, json),
       );
@@ -187,7 +193,8 @@ class JsonSanitizer {
           if (value is double) return value.toInt();
           if (value is String) {
             // 处理 PHP 返回的数字字符串
-            final result = int.tryParse(value.replaceAll(RegExp(r'[^0-9].'), ''));
+            final result =
+                int.tryParse(value.replaceAll(RegExp(r'[^0-9].'), ''));
             if (result != null) return result;
             return 0; // 若解析失败，返回默认值
           }
@@ -197,7 +204,8 @@ class JsonSanitizer {
           if (value is double) return value;
           if (value is int) return value.toDouble();
           if (value is String) {
-            final result = double.tryParse(value.replaceAll(RegExp(r'[^0-9.]'), ''));
+            final result =
+                double.tryParse(value.replaceAll(RegExp(r'[^0-9.]'), ''));
             if (result != null) return result;
             return 0.0;
           }
@@ -242,28 +250,31 @@ class JsonSanitizer {
       final nestedType = expectedSchema.itemType;
 
       if (value is List) {
-        return value.map((item) {
-          // 如果列表项是一个嵌套模型
-          if (nestedType != null &&
-              item is Map<String, dynamic> &&
-              expectedSchema.itemSchema is Map<String, dynamic>) {
-            final nestedSanitizer = JsonSanitizer._(
-              schema: expectedSchema.itemSchema,
-              modelType: nestedType,
-              onIssuesFound: onIssuesFound,
-            );
-            return nestedSanitizer.processMap(item);
-          }
+        return value
+            .map((item) {
+              // 如果列表项是一个嵌套模型
+              if (nestedType != null &&
+                  item is Map<String, dynamic> &&
+                  expectedSchema.itemSchema is Map<String, dynamic>) {
+                final nestedSanitizer = JsonSanitizer._(
+                  schema: expectedSchema.itemSchema,
+                  modelType: nestedType,
+                  onIssuesFound: onIssuesFound,
+                );
+                return nestedSanitizer.processMap(item);
+              }
 
-          // 普通列表项
-          return _convertValue(item, expectedSchema.itemSchema, key);
-        }).where((e) => e != null).toList();
+              // 普通列表项
+              return _convertValue(item, expectedSchema.itemSchema, key);
+            })
+            .where((e) => e != null)
+            .toList();
       }
 
-        // --- 处理数字-key的PHP数组，转换为 List ---
+      // --- 处理数字-key的PHP数组，转换为 List ---
       // 这部分代码会检查 expectedSchema 是否是 ListSchema，如果是，则进行数字-key数组的转换
       if (value is Map<String, dynamic>) {
-         // 检查是否所有 Key 都是数字
+        // 检查是否所有 Key 都是数字
         if (value.keys.every((key) => int.tryParse(key) != null)) {
           // 按 Key 排序（可选，但推荐，因为 Map 无序）
           final entries = value.entries.toList()
@@ -282,7 +293,8 @@ class JsonSanitizer {
               );
               return nestedSanitizer.processMap(entry.value);
             }
-            return _convertValue(entry.value, expectedSchema.itemSchema, entry.key);
+            return _convertValue(
+                entry.value, expectedSchema.itemSchema, entry.key);
           }).toList();
         }
       }
@@ -291,8 +303,6 @@ class JsonSanitizer {
           key: key, expectedType: 'List', receivedValue: value);
       return [];
     }
-
-
 
     // 场景: Map
     if (expectedSchema is Map<String, dynamic>) {

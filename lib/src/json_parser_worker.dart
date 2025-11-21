@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
@@ -249,11 +250,12 @@ class JsonParserWorker {
   /// 清洗并转换为模型对象。
   /// 当 Worker 不可用时，自动在主线程兜底执行。
   Future<T?> parseAndSanitize<T>({
-    required Map<String, dynamic> data,
+    required dynamic data,
     required Map<String, dynamic> schema,
     required T Function(Map<String, dynamic> json) fromJson,
     required Type modelType,
     DataIssueCallback? onIssuesFound,
+    List<String>? monitoredKeys,
   }) async {
     final shouldFallback = !isInitialized;
 
@@ -265,10 +267,38 @@ class JsonParserWorker {
       try {
         final sanitizer = JsonSanitizer.createInstanceForIsolate(
             schema: schema, modelType: modelType, onIssuesFound: onIssuesFound);
-        final sanitizedJson = sanitizer.processMap(data);
+
+        // 如果是 fallback 模式，data 必须是 Map，否则尝试转换
+        Map<String, dynamic> mapData;
+        if (data is Map<String, dynamic>) {
+          mapData = data;
+        } else if (data is String) {
+          try {
+            mapData = jsonDecode(data) as Map<String, dynamic>;
+          } catch (e) {
+            throw FormatException(
+                "Fallback parsing failed: data is string but not valid JSON object. $e");
+          }
+        } else {
+          throw ArgumentError(
+              "Fallback parsing requires Map<String, dynamic> or JSON String, but got ${data.runtimeType}");
+        }
+
+        // Fallback 模式下也执行 validate (如果需要一致性，这里也可以加，但 JsonSanitizer.parseAsync 已经处理了 Map 的情况)
+        // 不过为了安全起见，这里可以再加一次 validate，或者依赖 parseAsync 的逻辑。
+        // 既然 parseAsync 只有在 data is Map 时才 validate，那么 fallback 这里的 string -> map 转换后，
+        // 实际上没有经过 validate。为了保持一致性，我们可以在这里补充 validate。
+        final isValid = JsonSanitizer.validate(
+          data: mapData,
+          schema: schema,
+          modelType: modelType,
+          onIssuesFound: onIssuesFound,
+          monitoredKeys: monitoredKeys,
+        );
+        if (!isValid) return null;
+
+        final sanitizedJson = sanitizer.processMap(mapData);
         return fromJson(sanitizedJson);
-        // 主线程兜底创建模型
-        // return ModelRegistry.create(modelName, sanitizedJson) as T?;
       } catch (e, s) {
         if (kDebugMode) {
           print("❌ Fallback parse failed: $e");
@@ -283,12 +313,21 @@ class JsonParserWorker {
     // ==============================
     final bool schemaSent = _sentSchemas.contains(modelType);
     final replyPort = ReceivePort();
+
+    TransferableTypedData jsonBytes;
+    if (data is TransferableTypedData) {
+      jsonBytes = data;
+    } else {
+      jsonBytes = JsonTransferableUtils.encode(data);
+    }
+
     final task = ParseAndModelTask(
       replyPort: replyPort.sendPort,
       type: modelType,
-      jsonBytes: JsonTransferableUtils.encode(data),
+      jsonBytes: jsonBytes,
       schema: schemaSent ? null : schema,
       fromJson: fromJson, // 直接把 fromJson 传给 worker
+      monitoredKeys: monitoredKeys,
     );
 
     try {
@@ -300,6 +339,12 @@ class JsonParserWorker {
       }
       if (raw is ParseResult) {
         final result = raw;
+
+        // 处理 Worker 返回的验证问题
+        if (result.issues != null && result.issues!.isNotEmpty) {
+          onIssuesFound?.call(modelType: modelType, issues: result.issues!);
+        }
+
         if (result.isSuccess) {
           // Worker 返回了 modelInstance（已在子 isolate 创建）
           final modelInstance = result.modelInstance!;

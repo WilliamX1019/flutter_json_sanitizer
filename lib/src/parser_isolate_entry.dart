@@ -67,6 +67,29 @@ Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
             message.jsonBytes.materialize().asUint8List();
         final Map<String, dynamic> jsonData =
             json.decode(utf8.decode(rawBytes));
+
+        // --- 新增：在 Worker 中执行验证 ---
+        final collectedIssues = <String>[];
+        final isValid = JsonSanitizer.validate(
+          data: jsonData,
+          schema: effectiveSchema,
+          modelType: message.type,
+          monitoredKeys: message.monitoredKeys,
+          onIssuesFound: ({required modelType, required issues}) {
+            collectedIssues.addAll(issues);
+          },
+        );
+
+        if (!isValid) {
+          // 如果验证失败（例如不是 Map），直接返回失败，并携带问题
+          message.replyPort.send(ParseResult.failure(
+            FormatException("Validation failed for ${message.type}"),
+            null,
+            issues: collectedIssues,
+          ));
+          continue; // 跳过后续处理
+        }
+
         // 清洗数据
         final sanitizer = JsonSanitizer.createInstanceForIsolate(
           schema: effectiveSchema,
@@ -83,8 +106,12 @@ Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
             isSubIsolate: true);
 
         if (model != null) {
-          // 返回模型实例
-          message.replyPort.send(ParseResult.success(model, sanitizedJson));
+          // 返回模型实例，同时带上验证过程中发现的问题（如果有）
+          message.replyPort.send(ParseResult.success(
+            model,
+            sanitizedJson,
+            issues: collectedIssues.isNotEmpty ? collectedIssues : null,
+          ));
         } else {
           message.replyPort.send(ParseResult.failure(
               Exception("Model creation failed for ${message.type}"), null));

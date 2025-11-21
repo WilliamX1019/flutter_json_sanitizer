@@ -8,6 +8,7 @@ import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
 
 import 'models/user_profile.dart';
 import 'models/列表测试/product_list_json.dart';
+import 'http_util.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,7 +22,8 @@ void main() async {
     print(
         "FATAL: JsonParserWorker could not be initialized. App functionality will be degraded.");
   }
-  print('JsonParserWorker health... ${JsonParserWorker.instance.isInitialized}');
+  print(
+      'JsonParserWorker health... ${JsonParserWorker.instance.isInitialized}');
   runApp(const MyApp());
 }
 
@@ -177,12 +179,13 @@ class _MyHomePageState extends State<MyHomePage> {
       },
     );
     print('ProductModel : ${model?.id}');
-    if(JsonParserWorker.instance.isInitialized) {
+    if (JsonParserWorker.instance.isInitialized) {
       setState(() {
         isInitialized = true;
       });
     }
   }
+
   void _sanitizeListNestedJson() async {
     print('ProductListModelSchema = ${$ProductListModelSchema}');
     final model = await JsonSanitizer.parseAsync<ProductListModel>(
@@ -194,13 +197,12 @@ class _MyHomePageState extends State<MyHomePage> {
         // print('异步 发现问题: $issues 在模型 $modelType 中');
       },
     );
-    // print('ProductModel : ${model?.list?.length}');
-    if(JsonParserWorker.instance.isInitialized) {
+    print('ProductModel : ${model?.list?.length}');
+    if (JsonParserWorker.instance.isInitialized) {
       setState(() {
         isInitialized = true;
       });
     }
-
   }
 
   @override
@@ -226,15 +228,22 @@ class _MyHomePageState extends State<MyHomePage> {
               },
               child: const Text('净化多层嵌套数据'),
             ),
-            SizedBox(height: 30,),
-
+            const SizedBox(
+              height: 30,
+            ),
             ElevatedButton(
               onPressed: () {
                 _sanitizeListNestedJson();
               },
               child: const Text('净化列表多层嵌套数据'),
             ),
-
+            const SizedBox(
+              height: 30,
+            ),
+            ElevatedButton(
+              onPressed: _testNetworkRequest,
+              child: const Text('测试 Dio 网络请求 (HttpUtil)'),
+            ),
             Text('当前Worker状态: ${JsonParserWorker.instance.isInitialized}')
           ],
         ),
@@ -245,5 +254,33 @@ class _MyHomePageState extends State<MyHomePage> {
         child: const Icon(Icons.add),
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
+  }
+
+  Future<void> _testNetworkRequest() async {
+    print('开始测试网络请求...');
+    // 模拟一个请求，这里使用一个不存在的 URL 来演示错误处理，
+    // 或者你可以换成一个返回 JSON 的真实测试 URL (如 jsonplaceholder)
+    final result = await HttpUtil().get<UserProfile>(
+      path: 'https://jsonplaceholder.typicode.com/users/1', // 这是一个真实存在的测试API
+      // 注意：jsonplaceholder 返回的结构可能和 UserProfile 不完全匹配，
+      // 这正好可以测试 JsonSanitizer 的清洗能力！
+      fromJson: UserProfile.fromJson,
+      schema: $UserProfileSchema,
+      onIssuesFound: ({required modelType, required issues}) {
+        print('网络请求数据发现问题 (预期内): $issues');
+        setState(() {
+          title = '网络请求发现 ${issues.length} 个问题';
+        });
+      },
+    );
+
+    if (result != null) {
+      print('网络请求成功，解析结果: ${jsonEncode(result)}');
+      setState(() {
+        title = '网络请求成功: ${result.name}';
+      });
+    } else {
+      print('网络请求失败或返回 null');
+    }
   }
 }

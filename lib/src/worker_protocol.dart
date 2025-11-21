@@ -7,6 +7,7 @@ class ParseAndModelTask {
   final TransferableTypedData jsonBytes;
   final Map<String, dynamic>? schema;
   final dynamic Function(Map<String, dynamic> json) fromJson;
+  final List<String>? monitoredKeys;
 
   ParseAndModelTask({
     required this.replyPort,
@@ -14,6 +15,7 @@ class ParseAndModelTask {
     required this.jsonBytes,
     this.schema,
     required this.fromJson,
+    this.monitoredKeys,
   });
 }
 
@@ -23,13 +25,14 @@ class ParseResult<T> {
   final Map<String, dynamic>? sanitizedJson; // 依然保留清洗后的JSON
   final dynamic error;
   final StackTrace? stackTrace;
+  final List<String>? issues; // 新增：携带验证问题
 
-  ParseResult.success(this.modelInstance, this.sanitizedJson)
+  ParseResult.success(this.modelInstance, this.sanitizedJson, {this.issues})
       : isSuccess = true,
         error = null,
         stackTrace = null;
 
-  ParseResult.failure(this.error, this.stackTrace)
+  ParseResult.failure(this.error, this.stackTrace, {this.issues})
       : isSuccess = false,
         modelInstance = null,
         sanitizedJson = null;

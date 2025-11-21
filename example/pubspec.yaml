@@ -43,6 +43,7 @@ dependencies:
   # --- 2. 添加模型所需的依赖 ---
   freezed_annotation: ^2.4.1
   json_annotation: ^4.9.0
+  dio: ^5.9.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
