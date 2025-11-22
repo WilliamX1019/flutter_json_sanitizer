@@ -1,6 +1,7 @@
 // 引入Firebase Crashlytics (可选)
 // import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
+import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
@@ -16,7 +17,7 @@ import 'model_registry.dart';
 /// [issues] 是一个描述性字符串列表，说明了发现的具体问题。
 typedef DataIssueCallback = void Function({
   required Type modelType,
-  required List<String> issues,
+  required String issues,
 });
 
 class JsonSanitizer {
@@ -26,7 +27,7 @@ class JsonSanitizer {
   /// void main() {
   ///   JsonSanitizer.globalDataIssueCallback = ({modelName, issues}) {
   ///     // Your global Firebase/Sentry reporting logic here
-  ///     print("GLOBAL REPORTER: Issue for '$modelName': ${issues.join(', ')}");
+  ///     print("GLOBAL REPORTER: Issue for '$modelName': $issues");
   ///   };
   ///   runApp(MyApp());
   /// }
@@ -69,9 +70,9 @@ class JsonSanitizer {
     if (data == null || data is! Map<String, dynamic>) {
       onIssuesFound?.call(
         modelType: modelType,
-        issues: [
+        issues: jsonEncode([
           "Response body is null or not a valid JSON object. Received: $data"
-        ],
+        ]),
       );
       return false;
     }
@@ -112,7 +113,8 @@ class JsonSanitizer {
 
       // 如果发现了任何问题，就通过回调执行上报
       if (validationIssues.isNotEmpty) {
-        onIssuesFound(modelType: modelType, issues: validationIssues);
+        onIssuesFound(
+            modelType: modelType, issues: jsonEncode(validationIssues));
       }
     }
     return true;
@@ -187,7 +189,8 @@ class JsonSanitizer {
           if (value is double) return value.toInt();
           if (value is String) {
             // 处理 PHP 返回的数字字符串
-            final result = int.tryParse(value.replaceAll(RegExp(r'[^0-9].'), ''));
+            final result =
+                int.tryParse(value.replaceAll(RegExp(r'[^0-9].'), ''));
             if (result != null) return result;
             return 0; // 若解析失败，返回默认值
           }
@@ -197,7 +200,8 @@ class JsonSanitizer {
           if (value is double) return value;
           if (value is int) return value.toDouble();
           if (value is String) {
-            final result = double.tryParse(value.replaceAll(RegExp(r'[^0-9.]'), ''));
+            final result =
+                double.tryParse(value.replaceAll(RegExp(r'[^0-9.]'), ''));
             if (result != null) return result;
             return 0.0;
           }
@@ -242,28 +246,31 @@ class JsonSanitizer {
       final nestedType = expectedSchema.itemType;
 
       if (value is List) {
-        return value.map((item) {
-          // 如果列表项是一个嵌套模型
-          if (nestedType != null &&
-              item is Map<String, dynamic> &&
-              expectedSchema.itemSchema is Map<String, dynamic>) {
-            final nestedSanitizer = JsonSanitizer._(
-              schema: expectedSchema.itemSchema,
-              modelType: nestedType,
-              onIssuesFound: onIssuesFound,
-            );
-            return nestedSanitizer.processMap(item);
-          }
+        return value
+            .map((item) {
+              // 如果列表项是一个嵌套模型
+              if (nestedType != null &&
+                  item is Map<String, dynamic> &&
+                  expectedSchema.itemSchema is Map<String, dynamic>) {
+                final nestedSanitizer = JsonSanitizer._(
+                  schema: expectedSchema.itemSchema,
+                  modelType: nestedType,
+                  onIssuesFound: onIssuesFound,
+                );
+                return nestedSanitizer.processMap(item);
+              }
 
-          // 普通列表项
-          return _convertValue(item, expectedSchema.itemSchema, key);
-        }).where((e) => e != null).toList();
+              // 普通列表项
+              return _convertValue(item, expectedSchema.itemSchema, key);
+            })
+            .where((e) => e != null)
+            .toList();
       }
 
-        // --- 处理数字-key的PHP数组，转换为 List ---
+      // --- 处理数字-key的PHP数组，转换为 List ---
       // 这部分代码会检查 expectedSchema 是否是 ListSchema，如果是，则进行数字-key数组的转换
       if (value is Map<String, dynamic>) {
-         // 检查是否所有 Key 都是数字
+        // 检查是否所有 Key 都是数字
         if (value.keys.every((key) => int.tryParse(key) != null)) {
           // 按 Key 排序（可选，但推荐，因为 Map 无序）
           final entries = value.entries.toList()
@@ -282,7 +289,8 @@ class JsonSanitizer {
               );
               return nestedSanitizer.processMap(entry.value);
             }
-            return _convertValue(entry.value, expectedSchema.itemSchema, entry.key);
+            return _convertValue(
+                entry.value, expectedSchema.itemSchema, entry.key);
           }).toList();
         }
       }
@@ -291,8 +299,6 @@ class JsonSanitizer {
           key: key, expectedType: 'List', receivedValue: value);
       return [];
     }
-
-
 
     // 场景: Map
     if (expectedSchema is Map<String, dynamic>) {
@@ -327,9 +333,9 @@ class JsonSanitizer {
   }) {
     onIssuesFound?.call(
       modelType: modelType,
-      issues: [
+      issues: jsonEncode([
         "Structural error at field '$key': Expected a $expectedType but received a ${receivedValue.runtimeType}. Sanitizer cannot fix this and will return a default value."
-      ],
+      ]),
     );
   }
 
@@ -386,7 +392,7 @@ class JsonSanitizer {
     // 通过回调将格式化后的问题列表上报给使用者
     onIssuesFound?.call(
       modelType: modelType,
-      issues: issues,
+      issues: jsonEncode(issues),
     );
     if (kDebugMode) {
       debugPrint(
