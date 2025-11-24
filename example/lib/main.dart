@@ -8,6 +8,7 @@ import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
 
 import 'models/user_profile.dart';
 import 'models/列表测试/product_list_json.dart';
+import 'utils/safe_extensions.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,7 +22,8 @@ void main() async {
     print(
         "FATAL: JsonParserWorker could not be initialized. App functionality will be degraded.");
   }
-  print('JsonParserWorker health... ${JsonParserWorker.instance.isInitialized}');
+  print(
+      'JsonParserWorker health... ${JsonParserWorker.instance.isInitialized}');
   runApp(const MyApp());
 }
 
@@ -162,6 +164,24 @@ class _MyHomePageState extends State<MyHomePage> {
       },
     );
     print('异步 解析后的模型: ${jsonEncode(profile)}');
+
+    // --- 演示通用安全扩展方法的使用 ---
+    if (profile != null) {
+      print('Generic Safe Access Demo:');
+      // String? -> String
+      print('Name: ${profile.name.orEmpty}');
+      // int? -> int
+      print('UserID: ${profile.userId.orZero}');
+      // bool? -> bool
+      print('Is Active: ${profile.isActive.orFalse}');
+      // List? -> List
+      print('Tags Count: ${profile.tags.orEmpty.length}');
+
+      // 链式调用: 如果对象本身可能为null，可以结合 ?. 使用
+      // 注意：对于自定义对象（如Permissions），仍然需要判空，或者为自定义对象也写通用的 orEmpty (需要单例或工厂)
+      // 但针对基本类型字段，直接用 .orZero / .orEmpty 即可
+      print('Permissions Read: ${profile.permissions?.read.orZero}');
+    }
   }
 
   ///多层嵌套数据的净化
@@ -177,12 +197,13 @@ class _MyHomePageState extends State<MyHomePage> {
       },
     );
     print('ProductModel : ${model?.id}');
-    if(JsonParserWorker.instance.isInitialized) {
+    if (JsonParserWorker.instance.isInitialized) {
       setState(() {
         isInitialized = true;
       });
     }
   }
+
   void _sanitizeListNestedJson() async {
     print('ProductListModelSchema = ${$ProductListModelSchema}');
     final model = await JsonSanitizer.parseAsync<ProductListModel>(
@@ -194,13 +215,14 @@ class _MyHomePageState extends State<MyHomePage> {
         // print('异步 发现问题: $issues 在模型 $modelType 中');
       },
     );
+    final length = model?.list?.orEmpty.length;
+
     // print('ProductModel : ${model?.list?.length}');
-    if(JsonParserWorker.instance.isInitialized) {
+    if (JsonParserWorker.instance.isInitialized) {
       setState(() {
         isInitialized = true;
       });
     }
-
   }
 
   @override
@@ -226,15 +248,15 @@ class _MyHomePageState extends State<MyHomePage> {
               },
               child: const Text('净化多层嵌套数据'),
             ),
-            SizedBox(height: 30,),
-
+            SizedBox(
+              height: 30,
+            ),
             ElevatedButton(
               onPressed: () {
                 _sanitizeListNestedJson();
               },
               child: const Text('净化列表多层嵌套数据'),
             ),
-
             Text('当前Worker状态: ${JsonParserWorker.instance.isInitialized}')
           ],
         ),
