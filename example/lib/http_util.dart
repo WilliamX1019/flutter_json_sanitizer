@@ -2,12 +2,25 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
 
+/// 带上下文的回调（接口 + 模型 + issues）
+typedef IssueContextCallback = void Function({
+  required Type modelType,
+  required List<Map<String, dynamic>> issues,
+});
+
 /// 标准化的返回结果，方便上层区分网络错误 / 清洗问题
 class SanitizedResponse<T> {
   final T? data;
   final int? statusCode;
   final Object? error;
-  final List<String> issues;
+  /// 以 Map 形式组织的异常信息，便于携带接口上下文
+  /// 结构示例：
+  /// {
+  ///   "request": {"method": "GET", "path": "/api/user", "query": {...}},
+  ///   "modelType": "UserProfile",
+  ///   "issues": ["'name' is null", ...]
+  /// }
+  final List<Map<String, dynamic>> issues;
   final Response<dynamic>? rawResponse;
 
   const SanitizedResponse({
@@ -58,7 +71,7 @@ class HttpUtil {
   /// [queryParameters] 查询参数
   /// [fromJson] 模型工厂方法
   /// [schema] 模型对应的 Schema (由 flutter_json_sanitizer 生成)
-  /// [onIssuesFound] 数据问题回调
+  /// [onIssuesFoundWithContext] 带接口上下文的数据问题回调
   Future<SanitizedResponse<T>> request<T>({
     required String path,
     String method = 'GET',
@@ -66,7 +79,7 @@ class HttpUtil {
     Map<String, dynamic>? queryParameters,
     required T Function(Map<String, dynamic>) fromJson,
     required Map<String, dynamic> schema,
-    DataIssueCallback? onIssuesFound,
+    IssueContextCallback? onIssuesFoundWithContext,
     ResponseType? responseType,
     List<String>? monitoredKeys,
     bool sanitize = true,
@@ -80,14 +93,36 @@ class HttpUtil {
       }
     });
 
-    final reportedIssues = <String>[];
-    final baseIssueCallback =
-        onIssuesFound ?? JsonSanitizer.globalDataIssueCallback;
+    final reportedIssues = <Map<String, dynamic>>[];
+    final baseIssueCallback = JsonSanitizer.globalDataIssueCallback;
+    final contextIssueCallback = onIssuesFoundWithContext;
     DataIssueCallback? wrappedIssueCallback;
-    if (baseIssueCallback != null) {
+    final requestLabel =
+        _formatRequestLabel(method: method, path: path, query: queryParameters);
+    if (baseIssueCallback != null || contextIssueCallback != null) {
       wrappedIssueCallback = ({required modelType, required issues}) {
-        reportedIssues.addAll(issues);
-        baseIssueCallback(modelType: modelType, issues: issues);
+        // 将接口信息与 JsonSanitizer 的问题列表合并为结构化数据
+        final issueContext = _buildIssueContext(
+          method: method,
+          path: path,
+          query: queryParameters,
+          modelType: modelType,
+          issues: issues,
+        );
+        reportedIssues.add(issueContext);
+
+        // 向外暴露 Map 结构的回调，便于直接消费上下文信息
+        contextIssueCallback?.call(
+          modelType: modelType,
+          issues: [issueContext],
+        );
+
+        // 对外回调保持原始签名，但附带接口标签，便于快速定位
+        if (baseIssueCallback != null) {
+          final contextualIssues =
+              issues.map((e) => '[$requestLabel] $e').toList();
+          baseIssueCallback(modelType: modelType, issues: contextualIssues);
+        }
       };
     }
 
@@ -173,7 +208,7 @@ class HttpUtil {
     Map<String, dynamic>? queryParameters,
     required T Function(Map<String, dynamic>) fromJson,
     required Map<String, dynamic> schema,
-    DataIssueCallback? onIssuesFound,
+    IssueContextCallback? onIssuesFoundWithContext,
     ResponseType? responseType,
     List<String>? monitoredKeys,
     bool sanitize = true,
@@ -186,7 +221,7 @@ class HttpUtil {
       queryParameters: queryParameters,
       fromJson: fromJson,
       schema: schema,
-      onIssuesFound: onIssuesFound,
+      onIssuesFoundWithContext: onIssuesFoundWithContext,
       responseType: responseType,
       monitoredKeys: monitoredKeys,
       sanitize: sanitize,
@@ -202,7 +237,7 @@ class HttpUtil {
     Map<String, dynamic>? queryParameters,
     required T Function(Map<String, dynamic>) fromJson,
     required Map<String, dynamic> schema,
-    DataIssueCallback? onIssuesFound,
+    IssueContextCallback? onIssuesFoundWithContext,
     ResponseType? responseType,
     List<String>? monitoredKeys,
     bool sanitize = true,
@@ -216,7 +251,7 @@ class HttpUtil {
       queryParameters: queryParameters,
       fromJson: fromJson,
       schema: schema,
-      onIssuesFound: onIssuesFound,
+      onIssuesFoundWithContext: onIssuesFoundWithContext,
       responseType: responseType,
       monitoredKeys: monitoredKeys,
       sanitize: sanitize,
@@ -251,5 +286,41 @@ class HttpUtil {
       default:
         return "Dio error: ${e.message}";
     }
+  }
+
+  String _formatRequestLabel({
+    required String method,
+    required String path,
+    Map<String, dynamic>? query,
+  }) {
+    final buffer = StringBuffer('$method $path');
+    if (query != null && query.isNotEmpty) {
+      // 转成字符串，避免 dynamic 类型导致 Uri 抛异常
+      final stringified = query.map((key, value) => MapEntry(
+          key, value == null ? '' : Uri.encodeComponent(value.toString())));
+      final queryString = stringified.entries
+          .map((e) => '${e.key}=${e.value}')
+          .join('&');
+      buffer.write('?$queryString');
+    }
+    return buffer.toString();
+  }
+
+  Map<String, dynamic> _buildIssueContext({
+    required String method,
+    required String path,
+    Map<String, dynamic>? query,
+    required Type modelType,
+    required List<String> issues,
+  }) {
+    return {
+      'request': {
+        'method': method,
+        'path': path,
+        if (query != null && query.isNotEmpty) 'query': query,
+      },
+      'modelType': modelType.toString(),
+      'issues': issues,
+    };
   }
 }

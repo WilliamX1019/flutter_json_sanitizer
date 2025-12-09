@@ -266,7 +266,7 @@ class _MyHomePageState extends State<MyHomePage> {
       // 这正好可以测试 JsonSanitizer 的清洗能力！
       fromJson: UserProfile.fromJson,
       schema: $UserProfileSchema,
-      onIssuesFound: ({required modelType, required issues}) {
+      onIssuesFoundWithContext: ({required modelType, required issues}) {
         print('网络请求数据发现问题 (预期内): $issues');
         setState(() {
           title = '网络请求发现 ${issues.length} 个问题';
