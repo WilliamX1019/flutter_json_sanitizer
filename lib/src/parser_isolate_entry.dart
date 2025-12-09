@@ -48,6 +48,7 @@ Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
   await for (final message in workerPort) {
     if (message is ParseAndModelTask) {
       // 负责JSON清洗和模型创建
+      final collectedIssues = <String>[];
       try {
         // 获取或更新 Schema
         Map<String, dynamic>? effectiveSchema = message.schema;
@@ -69,7 +70,6 @@ Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
             json.decode(utf8.decode(rawBytes));
 
         // --- 新增：在 Worker 中执行验证 ---
-        final collectedIssues = <String>[];
         final isValid = JsonSanitizer.validate(
           data: jsonData,
           schema: effectiveSchema,
@@ -90,10 +90,13 @@ Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
           continue; // 跳过后续处理
         }
 
-        // 清洗数据
+        // 清洗数据（结构类异常也通过同一收集器向主 Isolate 返回）
         final sanitizer = JsonSanitizer.createInstanceForIsolate(
           schema: effectiveSchema,
           modelType: message.type,
+          onIssuesFound: ({required modelType, required issues}) {
+            collectedIssues.addAll(issues);
+          },
         );
         final sanitizedJson = sanitizer.processMap(jsonData);
         if (!registeredTypes.contains(message.type)) {
@@ -114,10 +117,17 @@ Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
           ));
         } else {
           message.replyPort.send(ParseResult.failure(
-              Exception("Model creation failed for ${message.type}"), null));
+            Exception("Model creation failed for ${message.type}"),
+            null,
+            issues: collectedIssues.isNotEmpty ? collectedIssues : null,
+          ));
         }
       } catch (e, s) {
-        message.replyPort.send(ParseResult.failure(e, s));
+        message.replyPort.send(ParseResult.failure(
+          e,
+          s,
+          issues: collectedIssues.isNotEmpty ? collectedIssues : null,
+        ));
       }
     }
   }

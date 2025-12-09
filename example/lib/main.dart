@@ -194,7 +194,7 @@ class _MyHomePageState extends State<MyHomePage> {
       fromJson: ProductListModel.fromJson,
       modelType: ProductListModel,
       onIssuesFound: ({required issues, required modelType}) {
-        // print('异步 发现问题: $issues 在模型 $modelType 中');
+        print('异步 发现问题: $issues 在模型 $modelType 中');
       },
     );
     print('ProductModel : ${model?.list?.length}');

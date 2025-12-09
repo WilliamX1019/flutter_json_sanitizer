@@ -150,7 +150,7 @@ class JsonSanitizer {
         modelType: modelType,
         fromJson: fromJson,
         monitoredKeys: monitoredKeys,
-
+        onIssuesFound: onIssuesFound
         ///(json) => ModelRegistry.create(modelName, json),
       );
       return sanitizedJson;
@@ -308,7 +308,6 @@ class JsonSanitizer {
     if (expectedSchema is Map<String, dynamic>) {
       if (value is Map<String, dynamic>) {
         // 为嵌套调用创建一个新的Sanitizer实例
-        // return processMap(value);
         final nestedSanitizer = JsonSanitizer._(
           schema: expectedSchema,
           modelType: modelType, // 此处modelType没有实际意义
@@ -316,7 +315,14 @@ class JsonSanitizer {
         );
         return nestedSanitizer.processMap(value);
       }
-      if (value is List && value.isEmpty) return <String, dynamic>{};
+      if (value is List && value.isEmpty) {
+        _reportStructuralError(
+          key: key,
+          expectedType: 'Map<String, dynamic>',
+          receivedValue: value,
+        );
+        return <String, dynamic>{};
+      }
       // --- 关键改动：调用上报方法 ---
       _reportStructuralError(
         key: key,
