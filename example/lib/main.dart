@@ -274,13 +274,13 @@ class _MyHomePageState extends State<MyHomePage> {
       },
     );
 
-    if (result != null) {
-      print('网络请求成功，解析结果: ${jsonEncode(result)}');
+    if (result.isSuccess && result.data != null) {
+      print('网络请求成功，解析结果: ${jsonEncode(result.data)}');
       setState(() {
-        title = '网络请求成功: ${result.name}';
+        title = '网络请求成功: ${result.data?.name}';
       });
     } else {
-      print('网络请求失败或返回 null');
+      print('网络请求失败: ${result.error}, issues: ${result.issues}');
     }
   }
 }
