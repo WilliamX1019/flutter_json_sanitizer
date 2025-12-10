@@ -8,7 +8,7 @@ import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
 
 import 'models/user_profile.dart';
 import 'models/列表测试/product_list_json.dart';
-import 'http_util.dart';
+import 'http_example/http_util.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
