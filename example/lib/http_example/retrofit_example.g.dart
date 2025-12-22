@@ -24,12 +24,12 @@ class _TodoApi implements TodoApi {
   final ParseErrorLogger? errorLogger;
 
   @override
-  Future<HttpResponse<dynamic>> getTodo(int id) async {
+  Future<HttpResponse<String>> getTodo(int id) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{};
     const Map<String, dynamic>? _data = null;
-    final _options = _setStreamType<HttpResponse<dynamic>>(Options(
+    final _options = _setStreamType<HttpResponse<String>>(Options(
       method: 'GET',
       headers: _headers,
       extra: _extra,
@@ -45,8 +45,14 @@ class _TodoApi implements TodoApi {
           _dio.options.baseUrl,
           baseUrl,
         )));
-    final _result = await _dio.fetch(_options);
-    final _value = _result.data;
+    final _result = await _dio.fetch<String>(_options);
+    late String _value;
+    try {
+      _value = _result.data!;
+    } on Object catch (e, s) {
+      errorLogger?.logError(e, s, _options);
+      rethrow;
+    }
     final httpResponse = HttpResponse(_value, _result);
     return httpResponse;
   }

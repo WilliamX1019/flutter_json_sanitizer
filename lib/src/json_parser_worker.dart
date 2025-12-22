@@ -7,7 +7,6 @@ import 'package:flutter_json_sanitizer/src/parser_isolate_entry.dart';
 import 'package:flutter_json_sanitizer/src/worker_protocol.dart';
 
 import 'json_transferable_utils.dart';
-import 'model_registry.dart';
 
 /// 一个管理长期驻留的JSON解析Worker Isolate的单例服务。
 /// 支持自动恢复机制，当后台Isolate崩溃或退出时自动重启。
@@ -123,12 +122,12 @@ class JsonParserWorker {
   Future<void> _startWorker({required Duration timeout}) async {
     final completer = Completer<SendPort>();
     final mainPort = ReceivePort();
-    _monitorPort = ReceivePort();
 
     // 如果已有旧的 monitor port，先清理
     try {
       _monitorPort?.close();
     } catch (_) {}
+    // 创建新的 monitor port
     _monitorPort = ReceivePort();
 
     mainPort.listen((message) {

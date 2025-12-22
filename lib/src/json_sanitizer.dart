@@ -1,15 +1,12 @@
 // 引入Firebase Crashlytics (可选)
 // import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
-import 'dart:isolate';
-
 import 'package:flutter/foundation.dart';
-import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:stack_trace/stack_trace.dart';
 
 import 'json_parser_worker.dart';
-import 'model_registry.dart';
+import 'schema_helpers.dart';
 
 /// 一个可复用的回调函数类型定义，用于上报在数据验证期间发现的问题。
 /// [modelName] 是正在解析的模型的名称。
@@ -78,6 +75,10 @@ class JsonSanitizer {
 
     // 步骤 2: (可选) 处理空Map的情况
     if (data.isEmpty) {
+      onIssuesFound?.call(
+        modelType: modelType,
+        issues: ["Response body is an empty map {}"],
+      );
       return false;
     }
 
@@ -118,7 +119,7 @@ class JsonSanitizer {
     return true;
   }
 
-  /// 🚀 异步版 - 适用于大型 JSON，自动在独立 isolate 执行
+  /// 🚀 异步 - 自动在独立 isolate 执行
   static Future<T?> parseAsync<T>({
     required dynamic data,
     required Map<String, dynamic> schema,
@@ -150,7 +151,8 @@ class JsonSanitizer {
         modelType: modelType,
         fromJson: fromJson,
         monitoredKeys: monitoredKeys,
-        onIssuesFound: onIssuesFound
+        onIssuesFound: onIssuesFound,
+
         ///(json) => ModelRegistry.create(modelName, json),
       );
       return sanitizedJson;
@@ -192,10 +194,21 @@ class JsonSanitizer {
           if (value is int) return value;
           if (value is double) return value.toInt();
           if (value is String) {
-            // 处理 PHP 返回的数字字符串
-            final result =
-                int.tryParse(value.replaceAll(RegExp(r'[^0-9].'), ''));
+              // 1. 尝试直接解析（支持 "-123"）
+            var result = int.tryParse(value);
             if (result != null) return result;
+            // 2. 尝试解析浮点数并取整（支持 "12.34" -> 12）
+            final doubleResult = double.tryParse(value);
+            if (doubleResult != null) return doubleResult.toInt();
+            // 3. 最后手段：激进清洗（移除所有非数字字符），作为保底
+            // 注意：这里依然会把 -10 变成 10，仅作为最后的容错
+            result = int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), ''));
+            if (result != null) return result;
+            _reportStructuralError(
+              key: key,
+              expectedType: 'int',
+              receivedValue: value,
+            );
             return 0; // 若解析失败，返回默认值
           }
           throw 'Cannot convert to int';
@@ -204,9 +217,20 @@ class JsonSanitizer {
           if (value is double) return value;
           if (value is int) return value.toDouble();
           if (value is String) {
-            final result =
-                double.tryParse(value.replaceAll(RegExp(r'[^0-9.]'), ''));
+            // 1. 尝试直接解析（支持 "12.34"）
+            var result = double.tryParse(value);
             if (result != null) return result;
+            // 2. 尝试解析整数并转换为 double（支持 "12" -> 12.0）
+            final intResult = int.tryParse(value);
+            if (intResult != null) return intResult.toDouble();
+            // 3. 最后手段：激进清洗（移除所有非数字字符），作为保底
+            result = double.tryParse(value.replaceAll(RegExp(r'[^0-9.]'), ''));
+            if (result != null) return result;
+            _reportStructuralError(
+              key: key,
+              expectedType: 'double',
+              receivedValue: value,
+            );
             return 0.0;
           }
           throw 'Cannot convert to double';
@@ -302,6 +326,36 @@ class JsonSanitizer {
       _reportStructuralError(
           key: key, expectedType: 'List', receivedValue: value);
       return [];
+    }
+
+    // 场景: MapSchema (用于显式声明 Map 的情况)
+    if (expectedSchema is MapSchema) {
+      // Convert to Map<String, dynamic> if applicable, or just handle generically
+      // MapSchema has valueSchema
+      final valueSchema = expectedSchema.valueSchema;
+      // We treat it similarly to Map<String, dynamic> but using valueSchema for all values
+
+      if (value is Map<String, dynamic>) {
+        final newMap = <String, dynamic>{};
+        value.forEach((k, v) {
+          newMap[k] = _convertValue(v, valueSchema, k);
+        });
+        return newMap;
+      }
+      if (value is List && value.isEmpty) {
+        _reportStructuralError(
+          key: key,
+          expectedType: 'Map<String, dynamic>',
+          receivedValue: value,
+        );
+        return <String, dynamic>{};
+      }
+      _reportStructuralError(
+        key: key,
+        expectedType: 'Map<String, dynamic>',
+        receivedValue: value,
+      );
+      return <String, dynamic>{};
     }
 
     // 场景: Map

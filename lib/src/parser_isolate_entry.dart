@@ -129,6 +129,13 @@ Future<void> parserIsolateEntryWithHeartbeat(SendPort mainPort) async {
           issues: collectedIssues.isNotEmpty ? collectedIssues : null,
         ));
       }
+    } else {
+      // 处理非预期的消息类型，便于调试
+      assert(() {
+        print(
+            '⚠️ Worker received unexpected message type: ${message.runtimeType}');
+        return true;
+      }());
     }
   }
 }
