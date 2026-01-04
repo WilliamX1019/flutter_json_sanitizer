@@ -9,6 +9,7 @@ import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
 import 'models/user_profile.dart';
 import 'models/列表测试/product_list_json.dart';
 import 'http_example/http_util.dart';
+import 'http_example/retrofit_example.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -244,6 +245,13 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: _testNetworkRequest,
               child: const Text('测试 Dio 网络请求 (HttpUtil)'),
             ),
+            const SizedBox(
+              height: 30,
+            ),
+            ElevatedButton(
+              onPressed: _testRetrofitRequest,
+              child: const Text('测试 Retrofit 自动清洗'),
+            ),
             Text('当前Worker状态: ${JsonParserWorker.instance.isInitialized}')
           ],
         ),
@@ -281,6 +289,23 @@ class _MyHomePageState extends State<MyHomePage> {
       });
     } else {
       print('网络请求失败: ${result.error}, issues: ${result.issues}');
+    }
+  }
+
+  Future<void> _testRetrofitRequest() async {
+    print('开始测试 Retrofit 请求...');
+    final demo = RetrofitSanitizerDemo();
+    // 假设 API 返回 {id: 1, title: 'delectus aut autem', completed: false}
+    // 这与我们的 Todo 模型匹配。
+    final todo = await demo.fetchTodo(id: 1);
+
+    if (todo != null) {
+      print('Retrofit 请求成功: $todo, title:${todo.title}');
+      setState(() {
+        title = 'Retrofit: ${todo.title}';
+      });
+    } else {
+      print('Retrofit 请求失败');
     }
   }
 }
