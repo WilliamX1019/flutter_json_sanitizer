@@ -237,9 +237,9 @@ class JsonSanitizer {
         }
         if (expectedSchema == String) {
           if (value is String) {
-            // 处理空字符串或 "null" 字符串
-            if (value.trim().isEmpty || value.toLowerCase() == 'null') {
-              return null; // 将空字符串或 "null" 字符串转为 null
+            // 处理"null" 字符串
+            if (value.toLowerCase() == 'null') {
+              return null; //"null" 字符串转为 null
             }
             return value;
           }
