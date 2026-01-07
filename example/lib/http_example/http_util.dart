@@ -191,7 +191,9 @@ class HttpUtil {
       // 如果响应是字符串且需清洗，我们为了避免主线程卡顿，
       // 将整个 Wrap Schema 传给 Worker，让 Worker 负责解析全部内容，
       // 然后返回清洗过的 Map 给我们，我们在主线程只做最后的 Model 实例化。
-      if (response.data is String && sanitize && isHttpSuccess) {
+      if ((response.data is String || response.data is Map<String, dynamic>) &&
+          sanitize &&
+          isHttpSuccess) {
         // 1. 动态构建“信封 Schema”
         // 注意：这里我们假设信封包含 code, message, page 等基本字段类型。
         // data 字段对应用户传入的 schema。
