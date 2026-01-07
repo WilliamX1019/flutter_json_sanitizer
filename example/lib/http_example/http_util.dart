@@ -66,6 +66,16 @@ class HttpUtil {
     _dio = dio;
   }
 
+  /// 添加自定义拦截器 (e.g. AuthTokenInterceptor)
+  void addInterceptor(Interceptor interceptor) {
+    _dio.interceptors.add(interceptor);
+  }
+
+  /// 批量添加自定义拦截器
+  void addInterceptors(List<Interceptor> interceptors) {
+    _dio.interceptors.addAll(interceptors);
+  }
+
   late Dio _dio;
   late final Future<void> _workerInitFuture;
 
