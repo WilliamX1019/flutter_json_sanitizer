@@ -373,15 +373,18 @@ class HttpUtil {
       final effectiveData = isListData ? {"_root_list": apiData} : apiData;
 
       // 1. Worker 清洗
-      final sanitizedData = await JsonSanitizer.parseAsync<dynamic>(
-        data: effectiveData,
-        schema: effectiveSchema,
-        fromJson: (json) =>
-            json, // Identity function, safe to pass? Usually yes if top-level or constant.
-        modelType: T, // 这里的 modelType 其实仅用于日志，传 T 没问题
-        monitoredKeys: monitoredKeys,
-        onIssuesFound: wrappedIssueCallback,
-      );
+      dynamic sanitizedData;
+      if (effectiveData != null) {
+        sanitizedData = await JsonSanitizer.parseAsync<dynamic>(
+          data: effectiveData,
+          schema: effectiveSchema,
+          fromJson: (json) =>
+              json, // Identity function, safe to pass? Usually yes if top-level or constant.
+          modelType: T, // 这里的 modelType 其实仅用于日志，传 T 没问题
+          monitoredKeys: monitoredKeys,
+          onIssuesFound: wrappedIssueCallback,
+        );
+      }
 
       // 2. 主线程模型转换
       dynamic finalResult;
@@ -481,6 +484,142 @@ class HttpUtil {
     return request<T>(
       path: path,
       method: 'POST',
+      data: data,
+      queryParameters: queryParameters,
+      fromJson: fromJson,
+      schema: schema,
+      onIssuesFoundWithContext: onIssuesFoundWithContext,
+      responseType: responseType,
+      monitoredKeys: monitoredKeys,
+      sanitize: sanitize,
+      useWorker: useWorker,
+      isListData: isListData,
+      cancelToken: cancelToken,
+      options: options,
+    );
+  }
+
+  /// PUT 请求便捷方法
+  Future<SanitizedResponse<T>> put<T>({
+    required String path,
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    required Function fromJson,
+    required Map<String, dynamic> schema,
+    IssueContextCallback? onIssuesFoundWithContext,
+    ResponseType? responseType,
+    List<String>? monitoredKeys,
+    bool sanitize = true,
+    bool useWorker = false,
+    bool isListData = false,
+    CancelToken? cancelToken,
+    Options? options,
+  }) {
+    return request<T>(
+      path: path,
+      method: 'PUT',
+      data: data,
+      queryParameters: queryParameters,
+      fromJson: fromJson,
+      schema: schema,
+      onIssuesFoundWithContext: onIssuesFoundWithContext,
+      responseType: responseType,
+      monitoredKeys: monitoredKeys,
+      sanitize: sanitize,
+      useWorker: useWorker,
+      isListData: isListData,
+      cancelToken: cancelToken,
+      options: options,
+    );
+  }
+
+  /// DELETE 请求便捷方法
+  Future<SanitizedResponse<T>> delete<T>({
+    required String path,
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    required Function fromJson,
+    required Map<String, dynamic> schema,
+    IssueContextCallback? onIssuesFoundWithContext,
+    ResponseType? responseType,
+    List<String>? monitoredKeys,
+    bool sanitize = true,
+    bool useWorker = false,
+    bool isListData = false,
+    CancelToken? cancelToken,
+    Options? options,
+  }) {
+    return request<T>(
+      path: path,
+      method: 'DELETE',
+      data: data,
+      queryParameters: queryParameters,
+      fromJson: fromJson,
+      schema: schema,
+      onIssuesFoundWithContext: onIssuesFoundWithContext,
+      responseType: responseType,
+      monitoredKeys: monitoredKeys,
+      sanitize: sanitize,
+      useWorker: useWorker,
+      isListData: isListData,
+      cancelToken: cancelToken,
+      options: options,
+    );
+  }
+
+  /// PATCH 请求便捷方法
+  Future<SanitizedResponse<T>> patch<T>({
+    required String path,
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    required Function fromJson,
+    required Map<String, dynamic> schema,
+    IssueContextCallback? onIssuesFoundWithContext,
+    ResponseType? responseType,
+    List<String>? monitoredKeys,
+    bool sanitize = true,
+    bool useWorker = false,
+    bool isListData = false,
+    CancelToken? cancelToken,
+    Options? options,
+  }) {
+    return request<T>(
+      path: path,
+      method: 'PATCH',
+      data: data,
+      queryParameters: queryParameters,
+      fromJson: fromJson,
+      schema: schema,
+      onIssuesFoundWithContext: onIssuesFoundWithContext,
+      responseType: responseType,
+      monitoredKeys: monitoredKeys,
+      sanitize: sanitize,
+      useWorker: useWorker,
+      isListData: isListData,
+      cancelToken: cancelToken,
+      options: options,
+    );
+  }
+
+  /// HEAD 请求便捷方法
+  Future<SanitizedResponse<T>> head<T>({
+    required String path,
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    required Function fromJson,
+    required Map<String, dynamic> schema,
+    IssueContextCallback? onIssuesFoundWithContext,
+    ResponseType? responseType,
+    List<String>? monitoredKeys,
+    bool sanitize = true,
+    bool useWorker = false,
+    bool isListData = false,
+    CancelToken? cancelToken,
+    Options? options,
+  }) {
+    return request<T>(
+      path: path,
+      method: 'HEAD',
       data: data,
       queryParameters: queryParameters,
       fromJson: fromJson,
