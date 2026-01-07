@@ -61,7 +61,12 @@ class HttpUtil {
   static final HttpUtil _instance = HttpUtil._internal();
   factory HttpUtil() => _instance;
 
-  late final Dio _dio;
+  @visibleForTesting
+  void setDio(Dio dio) {
+    _dio = dio;
+  }
+
+  late Dio _dio;
   late final Future<void> _workerInitFuture;
 
   HttpUtil._internal() {
@@ -99,7 +104,7 @@ class HttpUtil {
     String method = 'GET',
     dynamic data,
     Map<String, dynamic>? queryParameters,
-    required T Function(Map<String, dynamic>) fromJson,
+    required Function fromJson,
     required Map<String, dynamic> schema,
     IssueContextCallback? onIssuesFoundWithContext,
     ResponseType? responseType,
@@ -109,14 +114,15 @@ class HttpUtil {
     /// 是否使用 Worker 在后台 Isolate 进行全量解析 (Data + Envelope)
     /// 开启后 responseType 会被强制设为 plain，大幅降低主线程掉帧风险，适合大数据量接口。
     bool useWorker = false,
+
+    /// 响应的 data 字段是否为列表
+    bool isListData = false,
     CancelToken? cancelToken,
     Options? options,
   }) async {
     // 确保 Worker 尝试初始化；失败会降级到主线程清洗
     await _workerInitFuture.catchError((e) {
-      if (kDebugMode) {
-        print('JsonParserWorker 初始化失败，降级主线程清洗: $e');
-      }
+      // JsonParserWorker 初始化失败，降级主线程清洗
     });
 
     final reportedIssues = <Map<String, dynamic>>[];
@@ -191,7 +197,8 @@ class HttpUtil {
       // 如果响应是字符串且需清洗，我们为了避免主线程卡顿，
       // 将整个 Wrap Schema 传给 Worker，让 Worker 负责解析全部内容，
       // 然后返回清洗过的 Map 给我们，我们在主线程只做最后的 Model 实例化。
-      if ((response.data is String || response.data is Map<String, dynamic>) &&
+      if (useWorker &&
+          (response.data is String || response.data is Map<String, dynamic>) &&
           sanitize &&
           isHttpSuccess) {
         // 1. 动态构建“信封 Schema”
@@ -203,7 +210,7 @@ class HttpUtil {
           "business_code": "int", // or String depending on implementation
           "page":
               "dynamic", // page struct can be complex, use dynamic or specific schema if known
-          "data": schema
+          "data": isListData ? [schema] : schema
         };
 
         // 2. 调用 Worker 进行全量解析
@@ -241,9 +248,15 @@ class HttpUtil {
 
           // 4. 构建业务 Model (T)
           // 此时 rawData 已经是清洗过的 Map，直接转换，无需再次 Sanitize
-          if (rawData != null && rawData is Map<String, dynamic>) {
-            //由于 Map 已经在 Worker 里生成好了，这里只是简单的“指针赋值”和“对象头分配”。
-            apiData = fromJson(rawData);
+          if (rawData != null) {
+            if (isListData) {
+              if (rawData is List) {
+                apiData = (fromJson as T Function(List))(rawData);
+              }
+            } else if (rawData is Map<String, dynamic>) {
+              //由于 Map 已经在 Worker 里生成好了，这里只是简单的“指针赋值”和“对象头分配”。
+              apiData = (fromJson as T Function(Map<String, dynamic>))(rawData);
+            }
           }
         }
 
@@ -339,17 +352,47 @@ class HttpUtil {
       }
 
       // Map 模式下的 Sanitize (同前)
-      final parsed = await JsonSanitizer.parseAsync<T>(
-        data: apiData,
-        schema: schema,
-        fromJson: fromJson,
-        modelType: T,
+      // Map 模式下的 Sanitize
+      // 策略：让 Worker 只负责清洗（返回 dynamic），主线程负责 Model 转换
+      // 这样避免了向 Worker 传递复杂的闭包，也统一了逻辑
+      final Map<String, dynamic> effectiveSchema = isListData
+          ? {
+              "_root_list": [schema]
+            }
+          : schema;
+      final effectiveData = isListData ? {"_root_list": apiData} : apiData;
+
+      // 1. Worker 清洗
+      final sanitizedData = await JsonSanitizer.parseAsync<dynamic>(
+        data: effectiveData,
+        schema: effectiveSchema,
+        fromJson: (json) =>
+            json, // Identity function, safe to pass? Usually yes if top-level or constant.
+        modelType: T, // 这里的 modelType 其实仅用于日志，传 T 没问题
         monitoredKeys: monitoredKeys,
         onIssuesFound: wrappedIssueCallback,
       );
 
+      // 2. 主线程模型转换
+      dynamic finalResult;
+
+      if (sanitizedData != null) {
+        if (isListData) {
+          // 解包 _root_list
+          final listData = sanitizedData['_root_list'];
+          if (listData is List) {
+            finalResult = (fromJson as T Function(List))(listData);
+          }
+        } else {
+          if (sanitizedData is Map<String, dynamic>) {
+            finalResult =
+                (fromJson as T Function(Map<String, dynamic>))(sanitizedData);
+          }
+        }
+      }
+
       return SanitizedResponse<T>(
-        data: parsed,
+        data: finalResult as T?,
         statusCode: statusCode,
         code: apiCode,
         message: apiMessage,
@@ -357,7 +400,7 @@ class HttpUtil {
         page: apiPage,
         issues: reportedIssues,
         rawResponse: response,
-        error: parsed == null && apiData != null
+        error: finalResult == null && apiData != null
             ? 'Sanitized result is null'
             : null,
       );
@@ -381,13 +424,14 @@ class HttpUtil {
   Future<SanitizedResponse<T>> get<T>({
     required String path,
     Map<String, dynamic>? queryParameters,
-    required T Function(Map<String, dynamic>) fromJson,
+    required Function fromJson,
     required Map<String, dynamic> schema,
     IssueContextCallback? onIssuesFoundWithContext,
     ResponseType? responseType,
     List<String>? monitoredKeys,
     bool sanitize = true,
     bool useWorker = false,
+    bool isListData = false,
     CancelToken? cancelToken,
     Options? options,
   }) {
@@ -402,6 +446,7 @@ class HttpUtil {
       monitoredKeys: monitoredKeys,
       sanitize: sanitize,
       useWorker: useWorker,
+      isListData: isListData,
       cancelToken: cancelToken,
       options: options,
     );
@@ -412,13 +457,14 @@ class HttpUtil {
     required String path,
     dynamic data,
     Map<String, dynamic>? queryParameters,
-    required T Function(Map<String, dynamic>) fromJson,
+    required Function fromJson,
     required Map<String, dynamic> schema,
     IssueContextCallback? onIssuesFoundWithContext,
     ResponseType? responseType,
     List<String>? monitoredKeys,
     bool sanitize = true,
     bool useWorker = false,
+    bool isListData = false,
     CancelToken? cancelToken,
     Options? options,
   }) {
@@ -434,6 +480,7 @@ class HttpUtil {
       monitoredKeys: monitoredKeys,
       sanitize: sanitize,
       useWorker: useWorker,
+      isListData: isListData,
       cancelToken: cancelToken,
       options: options,
     );
