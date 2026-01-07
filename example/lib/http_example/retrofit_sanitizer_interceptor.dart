@@ -1,79 +1,99 @@
 import 'package:dio/dio.dart';
+import 'package:example/http_example/schema_resolver.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
 
-/// 一个集成 JsonSanitizer 的 Dio Interceptor。
+/// 一个集成 JsonSanitizer 的 Dio Interceptor (异步 Worker 版)。
 ///
 /// 它会检查请求配置中的 extra 字段，寻找 `sanitizer_key` 和 `sanitizer_model_type`。
-/// 如果找到对应的 schema，就会在数据返回给 Retrofit 之前自动执行清洗。
+/// 如果找到对应的 schema，就会使用 [JsonParserWorker] 在后台 Isolate 中进行数据清洗，
+/// 减轻主线程压力。
 class SanitizerInterceptor extends Interceptor {
-  /// 预先注册的 Schema 表。
-  /// Key: 你在 @Extra 定义的标识符 (推荐直接用 Model Type 字符串，或自定义 ID)。
-  /// Value: 该 Model 对应的 Schema Map。
-  final Map<String, Map<String, dynamic>> _schemaRegistry;
+  late final Future<void> _workerInitFuture;
 
-  SanitizerInterceptor(this._schemaRegistry);
-
-  @override
-  void onResponse(Response response, ResponseInterceptorHandler handler) {
-    _handleResponse(response);
-    super.onResponse(response, handler);
+  SanitizerInterceptor() {
+    // 优先初始化 Worker，失败时自动降级到主 Isolate
+    _workerInitFuture = _ensureWorkerInitialized();
   }
 
-  void _handleResponse(Response response) {
+  /// 确保 JsonParserWorker 初始化，失败时仅打印，后续会自动主线程清洗
+  Future<void> _ensureWorkerInitialized() async {
     try {
-      // 优先从 extra 读（兼容性），其次从 headers 读
-      var sanitizerKey =
-          response.requestOptions.extra['sanitizer_key'] as String?;
-
-      // 如果 extra 没有，尝试 headers (用于绕过 Retrofit @Extra 的限制)
-      if (sanitizerKey == null) {
-        final headers = response.requestOptions.headers;
-        if (headers.containsKey('x-sanitizer-key')) {
-          sanitizerKey = headers['x-sanitizer-key'] as String?;
-          // Header 已在请求中发送，此处仅作读取用于决定是否清洗
-        }
-      }
-
-      if (sanitizerKey == null) return;
-
-      // modelType 依然尝试从 extra 获取，如果 Header 方式使用则可能缺失，
-      // 缺失时默认使用 Object，或者我们也可以在 Header 传类型名？
-      // 但类型无法通过 header 传 Type 对象。
-      // 所以如果使用 Header 方式，interceptor 将无法确切知道 modelType，
-      // 除非我们在 Registry 里同时存 Type？
-      // 现在的 Registry 从 sanitizerKey -> Schema。
-      // Sanitizer 需要 modelType 主要是为了 上报 时的文案。
-      // 我们可以尝试从 extra 取，取不到就用 placeholder。
-      final modelType =
-          response.requestOptions.extra['sanitizer_model_type'] as Type? ??
-              Object;
-
-      final schema = _schemaRegistry[sanitizerKey];
-      if (schema == null) {
-        print(
-            '⚠️ SanitizerInterceptor: No schema found for key "$sanitizerKey"');
-        return;
-      }
-
-      final data = response.data;
-      // 目前只支持 Map 类型的自动清洗
-      if (data is Map<String, dynamic>) {
-        // 创建 Sanitizer 并执行 processMap
-        // 注意：这里是在主线程同步执行。
-        final sanitizer = JsonSanitizer.createInstanceForIsolate(
-          schema: schema,
-          modelType: modelType,
-          onIssuesFound: ({required modelType, required issues}) {
-            print('⚠️ Sanitizer issues for $modelType: $issues');
-          },
-        );
-
-        final cleanedData = sanitizer.processMap(data);
-        response.data = cleanedData;
-      }
+      await JsonParserWorker.instance.initialize();
     } catch (e) {
-      print('❌ SanitizerInterceptor error: $e');
-      // 不中断流程，让它继续往下走，可能会在 fromJson 时报错
+      if (kDebugMode) {
+        print('JsonParserWorker 初始化失败: $e');
+      }
+    }
+  }
+
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) async {
+    // 注意：Interceptor 的 onResponse 如果需要执行异步操作，
+    // 不能直接 await，或者需要确保在 await 后调用 handler.next/resolve/reject。
+    // 这里我们先进行异步清洗，完成后再放行。
+
+    try {
+      await _handleResponseAsync(response);
+      handler.next(response);
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ SanitizerInterceptor logic error: $e');
+      }
+      // 即使清洗过程出错，也尽量把原始数据交给下游，而不是卡死
+      handler.next(response);
+    }
+  }
+
+  Future<void> _handleResponseAsync(Response response) async {
+    // 确保 Worker 尝试初始化；失败会降级到主线程清洗
+    // await _workerInitFuture.catchError((_) {});
+
+    // 1. 获取 Model Type
+    final modelType =
+        response.requestOptions.extra['sanitizer_model_type'] as Type? ??
+            Object;
+
+    // 2. 获取 Schema
+    var schema = response.requestOptions.extra['sanitizer_schema']
+        as Map<String, dynamic>?;
+
+    if (schema == null) {
+      // Fallback: Check SchemaResolver using modelType
+      if (modelType != Object) {
+        schema = SchemaResolver.get(modelType);
+      }
+    }
+
+    if (schema == null) {
+      // No schema provided or found, skip sanitization
+      return;
+    }
+
+    final data = response.data;
+    // 目前只支持 Map 类型的自动清洗
+    if (data is Map<String, dynamic>) {
+      // 使用 JsonSanitizer.parseAsync 在 Worker 中清洗
+      // 为了适配 Retrofit 生成的代码 (它期望 data 是 Map 然后自己做 fromJson)，
+      // 我们这里让 Worker 返回清洗后的 Map。
+      // Trick: 传入一个 identity 函数作为 fromJson。
+      final sanitizedMap = await JsonSanitizer.parseAsync<Map<String, dynamic>>(
+        data: data,
+        schema: schema,
+        modelType: modelType,
+        fromJson: (json) => json, // 直接返回 Map
+        onIssuesFound: ({required modelType, required issues}) {
+          if (kDebugMode) {
+            print('⚠️ Sanitizer issues for $modelType: $issues');
+          }
+          // TODO: 也可以考虑把 issues 塞回 response.extra 以便上层获取
+          // response.extra['sanitizer_issues'] = issues;
+        },
+      );
+
+      if (sanitizedMap != null) {
+        response.data = sanitizedMap;
+      }
     }
   }
 }

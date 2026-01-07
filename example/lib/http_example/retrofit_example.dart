@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart' hide Headers;
 import 'package:example/http_example/retrofit_sanitizer_interceptor.dart';
+import 'package:example/http_example/schema_resolver.dart';
 import 'package:example/http_example/to_do.dart';
 import 'package:retrofit/retrofit.dart';
 
@@ -17,24 +18,27 @@ part 'retrofit_example.g.dart';
 abstract class TodoApi {
   factory TodoApi(Dio dio, {String baseUrl}) = _TodoApi;
 
-  /// 使用 @Headers 添加元数据 (x-sanitizer-key)，Interceptor 会拦截并清洗数据。
-  /// 注意：Retrofit 的 @Extra 对返回值有限制，故改用 Header。
+  /// 使用 @Extra 添加元数据，Interceptor 会拦截并清洗数据。
   @GET('/todos/{id}')
-  @Headers({'x-sanitizer-key': 'Todo'})
-  Future<Todo> getTodo(@Path('id') int id);
+
+  /// 使用 Options 传入 Schema
+  @GET('/todos/{id}')
+  Future<Todo> getTodo(@Path('id') int id, @DioOptions() Options options);
+
+  /// 方式 2: 直接在 Extra 中传入 Schema (避免在 Interceptor 中注册)
+  /// 方式 2: 通过运行时参数 Options 传入 Schema
+  @GET('/todos/{id}')
+  Future<Todo> getTodoDynamic(
+      @Path('id') int id, @DioOptions() Options options);
 }
 
 class RetrofitSanitizerDemo {
   RetrofitSanitizerDemo({Dio? dio}) : _dio = dio ?? Dio() {
-    // Keep var for compatibility if needed, but unused here
-
-    // 注册 Schema
-    final schemaRegistry = <String, Map<String, dynamic>>{
-      'Todo': $TodoSchema,
-    };
+    // 注册 Schema (静态注册一次即可)
+    SchemaResolver.register(Todo, $TodoSchema);
 
     // 添加拦截器
-    _dio.interceptors.add(SanitizerInterceptor(schemaRegistry));
+    _dio.interceptors.add(SanitizerInterceptor());
 
     _api = TodoApi(_dio);
   }
@@ -48,7 +52,30 @@ class RetrofitSanitizerDemo {
   }) async {
     try {
       // 此时返回的已经在 Interceptor 中被清洗过了
-      final todo = await _api.getTodo(id);
+      final todo = await _api.getTodo(
+        id,
+        Options(extra: {
+          'sanitizer_schema': $TodoSchema,
+          'sanitizer_model_type': Todo,
+        }),
+      );
+      return todo;
+    } catch (e) {
+      print('Fetch error: $e');
+      return null;
+    }
+  }
+
+  /// 示例：直接传 Schema，不依赖 Interceptor 中的 Registry
+  Future<Todo?> fetchTodoDynamic() async {
+    try {
+      final todo = await _api.getTodoDynamic(
+        1,
+        Options(extra: {
+          'sanitizer_schema': $TodoSchema,
+          'sanitizer_model_type': Todo,
+        }),
+      );
       return todo;
     } catch (e) {
       print('Fetch error: $e');

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:example/http_example/retrofit_sanitizer_interceptor.dart';
 import 'package:example/http_example/to_do.dart';
+import 'package:example/http_example/schema_resolver.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -10,48 +11,29 @@ void main() {
 
     setUp(() {
       dio = Dio();
-      // 使用简单的 SchemaRegistry
-      final schemaRegistry = <String, Map<String, dynamic>>{
-        'Todo': $TodoSchema,
-      };
-      interceptor = SanitizerInterceptor(schemaRegistry);
+      interceptor = SanitizerInterceptor();
       dio.interceptors.add(interceptor);
     });
 
-    test('should sanitize data via Interceptor logic', () {
+    test('should sanitize data via Interceptor logic using schema in Extra',
+        () {
       final dirtyData = {
         'id': '123',
         'title': 'Test Title',
         'completed': 'true'
       };
 
-      final requestOptions = RequestOptions(
-          path: '/test',
-          // 模拟 Retrofit @Headers -> RequestOptions.headers
-          headers: {'x-sanitizer-key': 'Todo'},
-          extra: {'sanitizer_model_type': Todo});
+      final requestOptions = RequestOptions(path: '/test', extra: {
+        'sanitizer_schema': $TodoSchema,
+        'sanitizer_model_type': Todo
+      });
 
       final response = Response<dynamic>(
         requestOptions: requestOptions,
         data: dirtyData,
       );
 
-      // Manually trigger interceptor logic by calling onResponse
-      // We need a mock handler
       final handler = _MockHandler();
-
-      // Override handler.next to capture result
-      // Since ResponseInterceptorHandler is not easily mockable without Mockito,
-      // check if we can inspect response.data directly after interceptor modification?
-      // SanitizerInterceptor calls super.onResponse(response, handler).
-      // We can subclass ResponseInterceptorHandler or just rely on the fact that response.data is modified IN PLACE.
-
-      // Mock handler (minimal)
-      // Actually Dio's Handler is abstract class but we can't extend it easily in test without implementing everything.
-      // But we don't need to call handler.next() to see the side effect on response.data!
-      // The interceptor modifies response.data BEFORE calling super.onResponse.
-      // Wait, let's check SanitizerInterceptor implementation:
-      // usage: _handleResponse(response); super.onResponse(response, handler);
 
       interceptor.onResponse(response, handler);
 
@@ -60,11 +42,67 @@ void main() {
       expect(cleaned['id'], equals(123)); // String "123" -> int 123
       expect(cleaned['completed'], isTrue); // String "true" -> bool true
       expect(cleaned['title'], equals('Test Title'));
+    });
+    test(
+        'Integration should sanitize data via Interceptor using Dynamic Schema',
+        () {
+      final requestOptions = RequestOptions(path: '/test', extra: {
+        // Simulate @Extra passing a dynamic schema
+        'sanitizer_schema': {'id': int, 'name': String},
+        'sanitizer_model_type': Map // Or any Type
+      });
 
-      // Actually, since we want to test _handleResponse logic, maybe we can just make it public or test side effect?
-      // But _handleResponse is private.
-      // However, onResponse takes a handler.
-      // Let's define a simple class.
+      final dirtyData = {
+        'id': '456', // String -> int
+        'name': 12345, // int -> String
+        'ignored': 'foo'
+      };
+
+      final response = Response<dynamic>(
+        requestOptions: requestOptions,
+        data: dirtyData,
+      );
+
+      final handler = _MockHandler();
+
+      interceptor.onResponse(response, handler);
+
+      // Verify
+      final cleaned = response.data as Map<String, dynamic>;
+      expect(cleaned['id'], equals(456));
+      expect(cleaned['name'], equals('12345'));
+    });
+    test(
+        'Integration should sanitize data via Interceptor using SchemaResolver (Hybrid)',
+        () {
+      // Register schema
+      SchemaResolver.register(Todo, $TodoSchema);
+
+      final requestOptions = RequestOptions(path: '/test', extra: {
+        // No schema here, only type
+        'sanitizer_model_type': Todo
+      });
+
+      final dirtyData = {
+        'id': '789', // String -> int
+        'title': 'Resolver Test',
+        'completed': 'false'
+      };
+
+      final response = Response<dynamic>(
+        requestOptions: requestOptions,
+        data: dirtyData,
+      );
+
+      final handler = _MockHandler();
+
+      interceptor.onResponse(response, handler);
+
+      // Verify
+      final cleaned = response.data as Map<String, dynamic>;
+      expect(cleaned['id'], equals(789));
+      expect(cleaned['title'], equals('Resolver Test'));
+      expect(cleaned['completed'], isFalse);
     });
   });
 }
