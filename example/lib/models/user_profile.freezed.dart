@@ -35,8 +35,12 @@ mixin _$UserProfile {
   @JsonKey(name: "metadata")
   Metadata? get metadata => throw _privateConstructorUsedError;
 
+  /// Serializes this UserProfile to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of UserProfile
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $UserProfileCopyWith<UserProfile> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -71,6 +75,8 @@ class _$UserProfileCopyWithImpl<$Res, $Val extends UserProfile>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of UserProfile
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -114,6 +120,8 @@ class _$UserProfileCopyWithImpl<$Res, $Val extends UserProfile>
     ) as $Val);
   }
 
+  /// Create a copy of UserProfile
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $PermissionsCopyWith<$Res>? get permissions {
@@ -126,6 +134,8 @@ class _$UserProfileCopyWithImpl<$Res, $Val extends UserProfile>
     });
   }
 
+  /// Create a copy of UserProfile
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $ProductCopyWith<$Res>? get mainProduct {
@@ -138,6 +148,8 @@ class _$UserProfileCopyWithImpl<$Res, $Val extends UserProfile>
     });
   }
 
+  /// Create a copy of UserProfile
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $MetadataCopyWith<$Res>? get metadata {
@@ -184,6 +196,8 @@ class __$$UserProfileImplCopyWithImpl<$Res>
       _$UserProfileImpl _value, $Res Function(_$UserProfileImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of UserProfile
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -297,7 +311,7 @@ class _$UserProfileImpl implements _UserProfile {
                 other.metadata == metadata));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -309,7 +323,9 @@ class _$UserProfileImpl implements _UserProfile {
       mainProduct,
       metadata);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of UserProfile
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$UserProfileImplCopyWith<_$UserProfileImpl> get copyWith =>
@@ -357,8 +373,11 @@ abstract class _UserProfile implements UserProfile {
   @override
   @JsonKey(name: "metadata")
   Metadata? get metadata;
+
+  /// Create a copy of UserProfile
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$UserProfileImplCopyWith<_$UserProfileImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -372,8 +391,12 @@ mixin _$Metadata {
   @JsonKey(name: "meta_data")
   String? get metaData => throw _privateConstructorUsedError;
 
+  /// Serializes this Metadata to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of Metadata
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $MetadataCopyWith<Metadata> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -396,6 +419,8 @@ class _$MetadataCopyWithImpl<$Res, $Val extends Metadata>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of Metadata
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -429,6 +454,8 @@ class __$$MetadataImplCopyWithImpl<$Res>
       _$MetadataImpl _value, $Res Function(_$MetadataImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of Metadata
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -469,11 +496,13 @@ class _$MetadataImpl implements _Metadata {
                 other.metaData == metaData));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, metaData);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of Metadata
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$MetadataImplCopyWith<_$MetadataImpl> get copyWith =>
@@ -497,8 +526,11 @@ abstract class _Metadata implements Metadata {
   @override
   @JsonKey(name: "meta_data")
   String? get metaData;
+
+  /// Create a copy of Metadata
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$MetadataImplCopyWith<_$MetadataImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -516,8 +548,12 @@ mixin _$Permissions {
   @JsonKey(name: "admin")
   int? get admin => throw _privateConstructorUsedError;
 
+  /// Serializes this Permissions to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of Permissions
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $PermissionsCopyWith<Permissions> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -544,6 +580,8 @@ class _$PermissionsCopyWithImpl<$Res, $Val extends Permissions>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of Permissions
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -590,6 +628,8 @@ class __$$PermissionsImplCopyWithImpl<$Res>
       _$PermissionsImpl _value, $Res Function(_$PermissionsImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of Permissions
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -650,11 +690,13 @@ class _$PermissionsImpl implements _Permissions {
             (identical(other.admin, admin) || other.admin == admin));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, read, write, admin);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of Permissions
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$PermissionsImplCopyWith<_$PermissionsImpl> get copyWith =>
@@ -686,8 +728,11 @@ abstract class _Permissions implements Permissions {
   @override
   @JsonKey(name: "admin")
   int? get admin;
+
+  /// Create a copy of Permissions
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$PermissionsImplCopyWith<_$PermissionsImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

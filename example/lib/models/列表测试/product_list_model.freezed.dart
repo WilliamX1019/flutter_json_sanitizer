@@ -25,8 +25,12 @@ mixin _$ProductListModel {
   @JsonKey(name: "paginate")
   Paginate? get paginate => throw _privateConstructorUsedError;
 
+  /// Serializes this ProductListModel to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of ProductListModel
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $ProductListModelCopyWith<ProductListModel> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -54,6 +58,8 @@ class _$ProductListModelCopyWithImpl<$Res, $Val extends ProductListModel>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of ProductListModel
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -72,6 +78,8 @@ class _$ProductListModelCopyWithImpl<$Res, $Val extends ProductListModel>
     ) as $Val);
   }
 
+  /// Create a copy of ProductListModel
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $PaginateCopyWith<$Res>? get paginate {
@@ -109,6 +117,8 @@ class __$$ProductListModelImplCopyWithImpl<$Res>
       $Res Function(_$ProductListModelImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of ProductListModel
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -169,12 +179,14 @@ class _$ProductListModelImpl implements _ProductListModel {
                 other.paginate == paginate));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType, const DeepCollectionEquality().hash(_list), paginate);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of ProductListModel
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$ProductListModelImplCopyWith<_$ProductListModelImpl> get copyWith =>
@@ -204,8 +216,11 @@ abstract class _ProductListModel implements ProductListModel {
   @override
   @JsonKey(name: "paginate")
   Paginate? get paginate;
+
+  /// Create a copy of ProductListModel
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$ProductListModelImplCopyWith<_$ProductListModelImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -225,8 +240,12 @@ mixin _$Paginate {
   @JsonKey(name: "limit")
   int? get limit => throw _privateConstructorUsedError;
 
+  /// Serializes this Paginate to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of Paginate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $PaginateCopyWith<Paginate> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -253,6 +272,8 @@ class _$PaginateCopyWithImpl<$Res, $Val extends Paginate>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of Paginate
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -305,6 +326,8 @@ class __$$PaginateImplCopyWithImpl<$Res>
       _$PaginateImpl _value, $Res Function(_$PaginateImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of Paginate
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -376,11 +399,13 @@ class _$PaginateImpl implements _Paginate {
             (identical(other.limit, limit) || other.limit == limit));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, page, totalPage, total, limit);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of Paginate
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$PaginateImplCopyWith<_$PaginateImpl> get copyWith =>
@@ -416,8 +441,11 @@ abstract class _Paginate implements Paginate {
   @override
   @JsonKey(name: "limit")
   int? get limit;
+
+  /// Create a copy of Paginate
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$PaginateImplCopyWith<_$PaginateImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

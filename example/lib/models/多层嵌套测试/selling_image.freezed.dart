@@ -25,8 +25,12 @@ mixin _$SellingImage {
   @JsonKey(name: "url")
   set url(String? value) => throw _privateConstructorUsedError;
 
+  /// Serializes this SellingImage to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of SellingImage
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $SellingImageCopyWith<SellingImage> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -50,6 +54,8 @@ class _$SellingImageCopyWithImpl<$Res, $Val extends SellingImage>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of SellingImage
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -83,6 +89,8 @@ class __$$SellingImageImplCopyWithImpl<$Res>
       _$SellingImageImpl _value, $Res Function(_$SellingImageImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of SellingImage
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -114,7 +122,9 @@ class _$SellingImageImpl implements _SellingImage {
     return 'SellingImage(url: $url)';
   }
 
-  @JsonKey(ignore: true)
+  /// Create a copy of SellingImage
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$SellingImageImplCopyWith<_$SellingImageImpl> get copyWith =>
@@ -140,8 +150,11 @@ abstract class _SellingImage implements SellingImage {
   String? get url;
   @JsonKey(name: "url")
   set url(String? value);
+
+  /// Create a copy of SellingImage
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$SellingImageImplCopyWith<_$SellingImageImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -157,8 +170,12 @@ mixin _$Video {
   @JsonKey(name: "image")
   String? get image => throw _privateConstructorUsedError;
 
+  /// Serializes this Video to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of Video
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $VideoCopyWith<Video> get copyWith => throw _privateConstructorUsedError;
 }
 
@@ -182,6 +199,8 @@ class _$VideoCopyWithImpl<$Res, $Val extends Video>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of Video
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -221,6 +240,8 @@ class __$$VideoImplCopyWithImpl<$Res>
       _$VideoImpl _value, $Res Function(_$VideoImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of Video
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -270,11 +291,13 @@ class _$VideoImpl implements _Video {
             (identical(other.image, image) || other.image == image));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, url, image);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of Video
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$VideoImplCopyWith<_$VideoImpl> get copyWith =>
@@ -301,8 +324,11 @@ abstract class _Video implements Video {
   @override
   @JsonKey(name: "image")
   String? get image;
+
+  /// Create a copy of Video
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$VideoImplCopyWith<_$VideoImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
