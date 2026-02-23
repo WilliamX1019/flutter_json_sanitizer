@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
-import 'package:flutter_json_sanitizer/src/json_sanitizer.dart'; // 需要内部API来实现同步解析
 import 'models/列表测试/product_list_json.dart';
 import 'models/列表测试/product_list_model.dart';
 // 如果没有到处 $ProductListModelSchema 这个需要 import 'models/列表测试/product_list_model.dart' 或者类似的位置
@@ -74,6 +73,9 @@ class _PerformanceTestPageState extends State<PerformanceTestPage>
         schema: $ProductListModelSchema,
         fromJson: ProductListModel.fromJson,
         modelType: ProductListModel,
+        onIssuesFound: ({required issues, required modelType}) {
+          print("A组: modelType: $modelType ,issues: $issues");
+        },
       );
     }
 
@@ -83,7 +85,7 @@ class _PerformanceTestPageState extends State<PerformanceTestPage>
     });
   }
 
-  // B 组：Main Isolate 中进行
+  // B 组：Main Isolate 中进行 (复用库内嵌的主线程兜底运行机制)
   Future<void> _runTestB() async {
     setState(() {
       _status = "B组（Main Isolate）运行中...";
@@ -92,20 +94,32 @@ class _PerformanceTestPageState extends State<PerformanceTestPage>
     await Future.delayed(const Duration(milliseconds: 100));
     final startTime = DateTime.now();
 
-    for (int i = 0; i < _iterations; i++) {
-      // 由于没有暴露官方的 parseSync, 我们手动组合验证和清洗逻辑
-      final isValid = JsonSanitizer.validate(
-        data: productListModelJson,
-        schema: $ProductListModelSchema,
-        modelType: ProductListModel,
-      );
-      if (isValid) {
-        final sanitizer = JsonSanitizer.createInstanceForIsolate(
+    // 核心步骤：通过 dispose 停用子 Isolate 以触发底层的 Fallback 检测
+    // 让其被迫退守走在 Main Isolate 中的清洗运行
+    final worker = JsonParserWorker.instance;
+    final wasInitialized = worker.isInitialized;
+    if (wasInitialized) {
+      worker.dispose();
+    }
+
+    try {
+      for (int i = 0; i < _iterations; i++) {
+        // 由于 worker.isInitialized 为 false，
+        // parseAsync 内部自动分流走到主线（Fallback）的 parseAndSanitize 逻辑
+        await JsonSanitizer.parseAsync<ProductListModel>(
+          data: productListModelJson,
           schema: $ProductListModelSchema,
+          fromJson: ProductListModel.fromJson,
           modelType: ProductListModel,
+          onIssuesFound: ({required issues, required modelType}) {
+            print("B组: modelType: $modelType ,issues: $issues");
+          },
         );
-        final sanitizedData = sanitizer.processMap(productListModelJson);
-        ProductListModel.fromJson(sanitizedData);
+      }
+    } finally {
+      // 执行完毕后，如果是刻意停掉的则重启保障后续功能
+      if (wasInitialized) {
+        await worker.initialize();
       }
     }
 
@@ -151,6 +165,35 @@ class _PerformanceTestPageState extends State<PerformanceTestPage>
     });
   }
 
+  // E 组：完整链路 (Worker 内置 Decoder)
+  // 将 JSON 字符串直接传递给 parseAsync，使其在常驻子 Isolate 中同时进行 JSON decode 和数据清洗。
+  Future<void> _runTestE() async {
+    setState(() {
+      _status = "E组（Worker Decode+Sanitize）运行中...";
+    });
+    await Future.delayed(const Duration(milliseconds: 100));
+    final startTime = DateTime.now();
+
+    for (int i = 0; i < _iterations; i++) {
+      // 这里的 data 我们传入的是 String 类型的 _hugeJsonString
+      // 根据 JsonParserWorker 的逻辑，传入 String 会直接被发送到 worker，然后在 worker 里进行解码及后续操作
+      await JsonSanitizer.parseAsync<ProductListModel>(
+        data: _hugeJsonString,
+        schema: $ProductListModelSchema,
+        fromJson: ProductListModel.fromJson,
+        modelType: ProductListModel,
+        onIssuesFound: ({required issues, required modelType}) {
+          print("E组: modelType: $modelType ,issues: $issues");
+        },
+      );
+    }
+
+    final cost = DateTime.now().difference(startTime).inMilliseconds;
+    setState(() {
+      _status = "E组完成: 耗时 $cost ms ($_iterations 次)";
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -162,7 +205,7 @@ class _PerformanceTestPageState extends State<PerformanceTestPage>
         child: Column(
           children: [
             const Text(
-              "性能测试：连续解析复杂的列表型 JSON 数据多遍。观察执行时的帧率变化和动画卡顿情况。",
+              "测试：连续解析复杂的列表型 JSON 数据多遍。观察执行时的帧率变化和动画卡顿情况。",
               style: TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 20),
@@ -239,6 +282,18 @@ class _PerformanceTestPageState extends State<PerformanceTestPage>
                   style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red[100]),
                   child: const Text('D组: 纯Decode(Main)'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 15),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton(
+                  onPressed: _runTestE,
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.purple[100]),
+                  child: const Text('E组: 全链路(Worker Decode)'),
                 ),
               ],
             ),
