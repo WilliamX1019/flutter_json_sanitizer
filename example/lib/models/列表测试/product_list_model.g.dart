@@ -31,8 +31,8 @@ _$ProductListModelImpl _$$ProductListModelImplFromJson(
 Map<String, dynamic> _$$ProductListModelImplToJson(
         _$ProductListModelImpl instance) =>
     <String, dynamic>{
-      'list': instance.list,
-      'paginate': instance.paginate,
+      'list': instance.list?.map((e) => e.toJson()).toList(),
+      'paginate': instance.paginate?.toJson(),
     };
 
 _$PaginateImpl _$$PaginateImplFromJson(Map<String, dynamic> json) =>

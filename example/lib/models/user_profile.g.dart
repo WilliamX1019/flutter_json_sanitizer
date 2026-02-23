@@ -44,9 +44,9 @@ Map<String, dynamic> _$$UserProfileImplToJson(_$UserProfileImpl instance) =>
       'name': instance.name,
       'is_active': instance.isActive,
       'tags': instance.tags,
-      'permissions': instance.permissions,
-      'mainProduct': instance.mainProduct,
-      'metadata': instance.metadata,
+      'permissions': instance.permissions?.toJson(),
+      'mainProduct': instance.mainProduct?.toJson(),
+      'metadata': instance.metadata?.toJson(),
     };
 
 _$MetadataImpl _$$MetadataImplFromJson(Map<String, dynamic> json) =>

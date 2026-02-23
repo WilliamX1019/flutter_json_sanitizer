@@ -157,10 +157,10 @@ Map<String, dynamic> _$$ProductModelImplToJson(_$ProductModelImpl instance) =>
       'description': instance.description,
       'video': instance.video,
       'all_video': instance.allVideo,
-      'videos': instance.videos,
+      'videos': instance.videos?.map((e) => e.toJson()).toList(),
       'small_image': instance.smallImage,
       'thumbnail_image': instance.thumbnailImage,
-      'images': instance.images,
+      'images': instance.images?.map((e) => e.toJson()).toList(),
       'stock_data_qty': instance.stockDataQty,
       'qty_limit': instance.qtyLimit,
       'is_in_stock': instance.isInStock,
@@ -169,7 +169,7 @@ Map<String, dynamic> _$$ProductModelImplToJson(_$ProductModelImpl instance) =>
       'detail_video_is_show': instance.detailVideoIsShow,
       'video_auto_play': instance.videoAutoPlay,
       'selling_tag': instance.sellingTag,
-      'selling_images': instance.sellingImages,
+      'selling_images': instance.sellingImages?.map((e) => e.toJson()).toList(),
       'review_count': instance.reviewCount,
       'review_summary': instance.reviewSummary,
       'option_footer_text': instance.optionFooterText,
@@ -177,11 +177,12 @@ Map<String, dynamic> _$$ProductModelImplToJson(_$ProductModelImpl instance) =>
       'final_price': instance.finalPrice,
       'save_price': instance.savePrice,
       'discount_percentage': instance.discountPercentage,
-      'options': instance.options,
+      'options': instance.options?.map((e) => e.toJson()).toList(),
       'preview_prime_member_card_price': instance.previewPrimeMemberCardPrice,
       'has_plus': instance.hasPlus,
       'url_path': instance.urlPath,
-      'all_option_variants': instance.allOptionVariants,
+      'all_option_variants':
+          instance.allOptionVariants?.map((e) => e.toJson()).toList(),
       'frame_image': instance.frameImage,
       'down_description': instance.downDescription,
       'top_description': instance.topDescription,
@@ -191,7 +192,7 @@ Map<String, dynamic> _$$ProductModelImplToJson(_$ProductModelImpl instance) =>
       'show_qty_rate': instance.showQtyRate,
       'is_wishlistsed': instance.isWishlistsed,
       'is_recommend_flag': instance.isRecommendFlag,
-      'reviews': instance.reviews,
+      'reviews': instance.reviews?.toJson(),
       'category_ids': instance.categoryIds,
     };
 
@@ -309,7 +310,7 @@ Map<String, dynamic> _$$OptionImplToJson(_$OptionImpl instance) =>
       'product_id': instance.productId,
       'option_name': instance.optionName,
       'is_require': instance.isRequire,
-      'values': instance.values,
+      'values': instance.values?.map((e) => e.toJson()).toList(),
     };
 
 _$ValueImpl _$$ValueImplFromJson(Map<String, dynamic> json) => $checkedCreate(

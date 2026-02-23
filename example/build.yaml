@@ -9,6 +9,17 @@ targets:
         options:
       # 开启checked模式，这将生成更安全的、带有详细错误信息的解析代码
           checked: true
+          # create_json_schema: true
+          explicit_to_json: true
+          converters:
+            - package:example/safe_convert/safe_converter_utils.dart::SafeIntConverter
+            - package:example/safe_convert/safe_converter_utils.dart::SafeNullableIntConverter
+            - package:example/safe_convert/safe_converter_utils.dart::SafeDoubleConverter
+            - package:example/safe_convert/safe_converter_utils.dart::SafeNullableDoubleConverter
+            - package:example/safe_convert/safe_converter_utils.dart::SafeBoolConverter
+            - package:example/safe_convert/safe_converter_utils.dart::SafeNullableBoolConverter
+            - package:example/safe_convert/safe_converter_utils.dart::SafeMapConverter
+            - package:example/safe_convert/safe_converter_utils.dart::SafeNullableMapConverter
       # --- END: 添加这个配置 ---
       # Ensure our builder is enabled for the project.
       flutter_json_sanitizer|schema_builder:
