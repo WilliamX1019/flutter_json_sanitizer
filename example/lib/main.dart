@@ -10,6 +10,7 @@ import 'models/user_profile.dart';
 import 'models/列表测试/product_list_json.dart';
 import 'http_example/http_util.dart';
 import 'http_example/retrofit_example.dart';
+import 'performance_test_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -251,6 +252,19 @@ class _MyHomePageState extends State<MyHomePage> {
             ElevatedButton(
               onPressed: _testRetrofitRequest,
               child: const Text('测试 Retrofit 自动清洗'),
+            ),
+            const SizedBox(
+              height: 30,
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const PerformanceTestPage()),
+                );
+              },
+              child: const Text('性能对比测试 (Isolate vs Main)'),
             ),
             Text('当前Worker状态: ${JsonParserWorker.instance.isInitialized}')
           ],

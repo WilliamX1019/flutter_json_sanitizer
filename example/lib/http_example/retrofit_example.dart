@@ -30,6 +30,11 @@ abstract class TodoApi {
   @GET('/todos/{id}')
   Future<Todo> getTodoDynamic(
       @Path('id') int id, @DioOptions() Options options);
+
+  /// 方式 3: 返回 String (Sanitizer 会跳过处理)
+  /// 如果接口返回的不是 Map/List，SanitizerInterceptor 会自动忽略
+  @GET('/todos/{id}')
+  Future<String> getTodoString(@Path('id') int id);
 }
 
 class RetrofitSanitizerDemo {
