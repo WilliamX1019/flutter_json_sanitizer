@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_json_sanitizer/flutter_json_sanitizer.dart';
+import 'package:flutter_json_sanitizer/src/json_transferable_utils.dart';
 import 'models/列表测试/product_list_json.dart';
 import 'models/列表测试/product_list_model.dart';
 // 如果没有到处 $ProductListModelSchema 这个需要 import 'models/列表测试/product_list_model.dart' 或者类似的位置
@@ -23,7 +24,7 @@ class _PerformanceTestPageState extends State<PerformanceTestPage>
   Duration? _lastElapsed;
 
   String _status = "闲置状态";
-  int _iterations = 50; // 根据性能自己调节
+  int _iterations = 100; // 根据性能自己调节
   late final String _hugeJsonString;
 
   @override
@@ -85,6 +86,34 @@ class _PerformanceTestPageState extends State<PerformanceTestPage>
     });
   }
 
+  // A1 组：Worker Isolate 模拟网络原始数据（优化性能）
+  // 模拟从 Dio/HttpClient 等拿到的原始 Response Bytes，直接进行0拷贝传输。
+  Future<void> _runTestA1() async {
+    setState(() {
+      _status = "A1 组（0拷贝模拟）运行中...";
+    });
+    await Future.delayed(const Duration(milliseconds: 100));
+    final startTime = DateTime.now();
+
+    for (int i = 0; i < _iterations; i++) {
+      // 这里的 data 必须是 TransferableTypedData
+      // JsonTransferableUtils.encode 其实内部也是做 jsonString->Byte的操作
+      final transferableData = JsonTransferableUtils.encode(_hugeJsonString);
+      await JsonSanitizer.parseAsync<ProductListModel>(
+        data: transferableData,
+        schema: $ProductListModelSchema,
+        fromJson: ProductListModel.fromJson,
+        modelType: ProductListModel,
+        onIssuesFound: ({required issues, required modelType}) {
+          print("A1组: modelType: $modelType ,issues: $issues");
+        },
+      );
+    }
+    final cost = DateTime.now().difference(startTime).inMilliseconds;
+    setState(() {
+      _status = "A1 组完成: 耗时 $cost ms ($_iterations 次)";
+    });
+  }
   // B 组：Main Isolate 中进行 (复用库内嵌的主线程兜底运行机制)
   Future<void> _runTestB() async {
     setState(() {
@@ -225,18 +254,10 @@ class _PerformanceTestPageState extends State<PerformanceTestPage>
                               color: _fps < 40 ? Colors.red : Colors.green)),
                     ],
                   ),
-                  RotationTransition(
-                    turns: _animationController,
-                    child: Container(
-                      width: 50,
-                      height: 50,
-                      decoration: const BoxDecoration(
-                        color: Colors.blue,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                          child: Icon(Icons.sync, color: Colors.white)),
-                    ),
+                  const SizedBox(
+                    width: 50,
+                    height: 50,
+                    child: CircularProgressIndicator(),
                   ),
                 ],
               ),
@@ -250,50 +271,66 @@ class _PerformanceTestPageState extends State<PerformanceTestPage>
                   color: Colors.deepPurple),
             ),
             const SizedBox(height: 30),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            Column(
               children: [
-                ElevatedButton(
-                  onPressed: _runTestA,
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[100]),
-                  child: const Text('A组: 全链路(Worker)'),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _runTestA,
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue[100]),
+                    child: const Text('A组: 全链路(Worker)'),
+                  ),
                 ),
-                ElevatedButton(
-                  onPressed: _runTestB,
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange[100]),
-                  child: const Text('B组: 全链路(Main)'),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _runTestA1,
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue[200]),
+                    child: const Text('A1组: 网络0拷贝(TransferableTypedData)'),
+                  ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 15),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton(
-                  onPressed: _runTestC,
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.cyan[100]),
-                  child: const Text('C组: 纯Decode(Isolate)'),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _runTestB,
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange[100]),
+                    child: const Text('B组: 全链路(Main)'),
+                  ),
                 ),
-                ElevatedButton(
-                  onPressed: _runTestD,
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red[100]),
-                  child: const Text('D组: 纯Decode(Main)'),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _runTestC,
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.cyan[100]),
+                    child: const Text('C组: 纯Decode(Isolate)'),
+                  ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 15),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton(
-                  onPressed: _runTestE,
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple[100]),
-                  child: const Text('E组: 全链路(Worker Decode)'),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _runTestD,
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red[100]),
+                    child: const Text('D组: 纯Decode(Main)'),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _runTestE,
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purple[100]),
+                    child: const Text('E组: 全链路(Worker Decode)'),
+                  ),
                 ),
               ],
             ),
