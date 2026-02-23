@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 /*
-  // 1. 初始化异常拦截器
+  // 1. main.dart 初始化异常拦截器
   ParseErrorReporter.onReport = (expectedType, invalidValue, stackTrace) {
     final errorMsg = 'JSON Parsing Error: Expected [$expectedType] but got [$invalidValue] of type ${invalidValue.runtimeType}';
     
